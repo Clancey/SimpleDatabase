@@ -1,0 +1,11 @@
+/Make.config.local
+/.dist
+*~
+*.pidb
+*.userprefs
+*.resources
+bin/
+obj/
+.DS_Store
+test-results
+*.suo
