@@ -46,7 +46,7 @@ namespace InstantSample
 
 		public override string[] SectionIndexTitles ()
 		{
-			return Database.Main.QuickJump<Song> ();
+			return SongDatabase.Main.QuickJump<Song> ();
 		}
 
 		public override string HeaderForSection (int section)
