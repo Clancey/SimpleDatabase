@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<addon format="1" id="mbprogresshud">
+  <name>MBProgressHud</name>
+  <publisher>http://chunkyinterface.wordpress.com/2010/09/09/mbprogresshud-for-monotouch/</publisher>
+  <publisher-url>http://chunkyinterface.wordpress.com/2010/09/09/mbprogresshud-for-monotouch/</publisher-url>
+  <version>1.0</version>
+  <summary>Modal progress view for iOS.</summary>
+  <screenshots>
+    <img src="screenshots/screenshot1.png" title="MBProgressHud" />
+  </screenshots>
+  <samples>
+    <sample id="MBProgressHudSample">
+      <name>MBProgressHud iOS Sample</name>
+      <summary>Demonstrates using MBProgressHud for iOS</summary>
+    </sample>
+  </samples>
+</addon>

@@ -14,7 +14,7 @@ namespace Xamarin.Data
 		Dictionary<Type,Dictionary<object,object>> ObjectsDict = new Dictionary<Type, Dictionary<object, object>>();
 		Dictionary<Type,List<object>> Objects = new Dictionary<Type, List<object>>();
 		Dictionary<Type,List<InstantDatabaseGroup>> Groups = new Dictionary<Type, List<InstantDatabaseGroup>>();
-		public object DatabaseLocker = new object();
+		public static object DatabaseLocker = new object();
 		public InstantDatabase (string databasePath, bool storeDateTimeAsTicks = false) : base ( databasePath, storeDateTimeAsTicks)
 		{
 			init ();
@@ -43,6 +43,7 @@ namespace Xamarin.Data
 				throw new Exception ("Objects must contain the GroupBy Attribute");
 			if (orderBy == null)
 				throw new Exception ("Objects must contain the OrderBy Attribute");
+			SetGroups (type);
 			FillGroups (type);
 			if(Groups[type].Count() == 0)
 				SetGroups(type);
@@ -65,8 +66,12 @@ namespace Xamarin.Data
 
 			var query = string.Format ("select distinct {1} as Grouping from {0} order by {2}", type.Name,groupBy.Name, orderBy.Name);
 			List<InstantDatabaseGroup> groups;
-			lock(DatabaseLocker)
+			lock (DatabaseLocker) {
 				groups = this.Query<InstantDatabaseGroup> (query).ToList ();
+				var deleteQuery = string.Format("delete from InstantDatabaseGroup where ClassName = ?");
+				this.Execute(deleteQuery,type.Name);
+			}
+
 			for(int i = 0; i < groups.Count(); i++) {
 				var group = groups[i];
 				group.ClassName = type.Name;
@@ -111,7 +116,12 @@ namespace Xamarin.Data
 			return Groups[t][section].Grouping;
 		}
 		public string [] QuickJump<T> (){
-			return Groups[typeof(T)].Select(x=> x.Grouping[0].ToString()).ToArray();
+			var t = typeof(T);
+			if (!Groups.ContainsKey (t))
+				SetGroup (t);
+			var groups = Groups [t];
+			var strings = groups.Select(x=> x.Grouping[0].ToString()).ToArray();
+			return strings;
 		}
 
 		public int NumberOfSections<T>()
