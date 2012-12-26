@@ -5,113 +5,164 @@ using SQLite;
 using System.Reflection;
 using System.Collections;
 using System.Threading.Tasks;
+//using Java.Lang;
+using System.Threading;
 
 namespace Xamarin.Data
 {
-	public class InstantDatabase : SQLiteConnection
+	public class InstantDatabase 
 	{
-		Dictionary<Type,Dictionary<int,Dictionary<int,Object>>> MemoryStore = new Dictionary<Type, Dictionary<int, Dictionary<int, object>>> ();
+		Dictionary<Tuple<Type,string>,Dictionary<int,Dictionary<int,Object>>> MemoryStore = new Dictionary<Tuple<Type,string>, Dictionary<int, Dictionary<int, object>>> ();
 		Dictionary<Type,Dictionary<object,object>> ObjectsDict = new Dictionary<Type, Dictionary<object, object>> ();
 		Dictionary<Type,List<object>> Objects = new Dictionary<Type, List<object>> ();
-		Dictionary<Type,List<InstantDatabaseGroup>> Groups = new Dictionary<Type, List<InstantDatabaseGroup>> ();
+		Dictionary<Tuple<Type,string>,List<InstantDatabaseGroup>> Groups = new Dictionary<Tuple<Type,string>, List<InstantDatabaseGroup>> ();
+		Dictionary<Type,GroupInfo> GroupInfoDict = new Dictionary<Type, GroupInfo> ();
 		public static object DatabaseLocker = new object ();
-
-		public InstantDatabase (string databasePath, bool storeDateTimeAsTicks = false) : base ( databasePath, storeDateTimeAsTicks)
+		object groupLocker = new object ();
+		SQLiteConnection connection;
+		public InstantDatabase(SQLiteConnection sqliteConnection)
 		{
+			connection = sqliteConnection;
 			init ();
 		}
-
-		public InstantDatabase (string databasePath, SQLiteOpenFlags openFlags, bool storeDateTimeAsTicks = false) : base (databasePath, openFlags, storeDateTimeAsTicks)
+		public InstantDatabase (string databasePath, bool storeDateTimeAsTicks = false)
 		{
+			connection = new SQLiteConnection (databasePath, true);
 			init ();
 		}
 
 		void init ()
 		{
-			lock (DatabaseLocker)
-				this.CreateTable<InstantDatabaseGroup> ();
+			lock(DatabaseLocker){
+				connection.CreateTable<InstantDatabaseGroup> ();
+			}
+#if iOS
+			MonoTouch.Foundation.NSNotificationCenter.DefaultCenter.AddObserver("UIApplicationDidReceiveMemoryWarningNotification",delegate{
+				ClearMemory();
+			});
+#endif
+		}
+
+		public void MakeClassInstant<T> (GroupInfo info)
+		{
+			MakeClassInstant (typeof(T), info);
 		}
 
 		public void MakeClassInstant<T> ()
 		{
-			MakeClassInstant (typeof(T));
+			var t = typeof(T);
+			MakeClassInstant (t);
 		}
-		
+
 		public void MakeClassInstant (Type type)
 		{
-			lock (DatabaseLocker) {
-				var groupBy = GetGroupByProperty (type);
-				var orderBy = GetOrderByProperty (type);
-				if (groupBy == null)
-					throw new Exception ("Objects must contain the GroupBy Attribute");
-				if (orderBy == null)
-					throw new Exception ("Objects must contain the OrderBy Attribute");
-				SetGroups (type);
-				FillGroups (type);
-				if (Groups [type].Count () == 0)
-					SetGroups (type);
-			}
-
+			MakeClassInstant (type, GetGroupInfo (type));
+			
 		}
-
-		private void FillGroups (Type type)
-		{
-			lock (DatabaseLocker) {
-				List<InstantDatabaseGroup> groups = this.Table<InstantDatabaseGroup> ().Where (x => x.ClassName == type.Name).OrderBy (x => x.Order).ToList ();
-				if (Groups.ContainsKey (type))
-					Groups [type] = groups;
-				else
-					Groups.Add (type, groups);
-			}
-		}
-
-		private void SetGroups (Type type)
-		{
-			lock (DatabaseLocker) {
-				var groupBy = GetGroupByProperty (type);
-				var orderBy = GetOrderByProperty (type);
-
-				var query = string.Format ("select distinct {1} as Grouping from {0} order by {2}", type.Name, groupBy.Name, orderBy.Name);
-				List<InstantDatabaseGroup> groups = this.Query<InstantDatabaseGroup> (query).ToList ();
-				var deleteQuery = string.Format ("delete from InstantDatabaseGroup where ClassName = ?");
-				this.Execute (deleteQuery, type.Name);
-
-				for (int i = 0; i < groups.Count(); i++) {
-					var group = groups [i];
-					group.ClassName = type.Name;
-					group.Order = i;
-					var rowQuery = string.Format ("select count(*) from {0} where {1} = ?", type.Name, groupBy.Name);
-					lock (DatabaseLocker)
-						group.RowCount = this.ExecuteScalar<int> (rowQuery, group.Grouping);
-				}
 		
-				this.InsertAll (groups);
+		public void MakeClassInstant (Type type, GroupInfo info)
+		{
+			SetGroups (type, info);
+			FillGroups (type, info);
+			if (Groups [new Tuple<Type,string> (type, info.ToString())].Count () == 0)
+				SetGroups (type, info);
 
-				if (Groups.ContainsKey (type))
-					Groups [type] = groups;
-				else
-					Groups.Add (type, groups);
+		}
+
+		private GroupInfo GetGroupInfo<T> ()
+		{
+			return GetGroupInfo (typeof(T));
+		}
+
+		private GroupInfo GetGroupInfo (Type type)
+		{
+			if (GroupInfoDict.ContainsKey (type))
+				return GroupInfoDict [type];
+			var groupBy = GetGroupByProperty (type);
+			var orderBy = GetOrderByProperty (type);
+			var groupInfo = new GroupInfo ();
+			if (groupBy != null)
+				groupInfo.GroupBy = groupBy.Name;
+			if (orderBy != null)
+				groupInfo.OrderBy = orderBy.Name;
+			GroupInfoDict.Add (type, groupInfo);
+			return groupInfo;
+		}
+
+		private void SetGroups (Type type, GroupInfo groupInfo)
+		{
+			List<InstantDatabaseGroup> groups;
+			lock(DatabaseLocker){
+				if (string.IsNullOrEmpty (groupInfo.GroupBy))
+					groups = new List<InstantDatabaseGroup> (){new InstantDatabaseGroup{GroupString = ""}};
+				else {
+					var query = string.Format ("select distinct {1} as GroupString from {0} order by {2}", type.Name, groupInfo.GroupBy, groupInfo.OrderBy);
+					groups = connection.Query<InstantDatabaseGroup> (query).ToList ();
+				}
+				var deleteQuery = string.Format ("delete from InstantDatabaseGroup where ClassName = ? and GroupBy = ? and OrderBy = ? and Filter = ?");
+				int deleted = connection.Execute (deleteQuery, type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.Filter);
 			}
+			for (int i = 0; i < groups.Count(); i++) {
+				var group = groups [i];
+				group.ClassName = type.Name;
+				group.Filter = groupInfo.Filter ?? "";
+				group.GroupBy = groupInfo.GroupBy ?? "";
+				group.OrderBy = groupInfo.OrderBy ?? "";
+				group.Order = i;
+				string rowQuery;
+				if (string.IsNullOrEmpty (groupInfo.GroupBy))
+					rowQuery = string.Format ("select count(*) from {0} {1}", type.Name, groupInfo.FilterString (true));
+				else
+					rowQuery = string.Format ("select count(*) from {0} where {1} = ? {2}", type.Name, groupInfo.GroupBy, groupInfo.FilterString (false));
+				lock(DatabaseLocker){
+					group.RowCount = connection.ExecuteScalar<int> (rowQuery, group.GroupString);
+				}
+			}
+	
+
+			lock(DatabaseLocker){
+				connection.InsertAll (groups);
+			}
+			var tuple = new Tuple<Type,string> (type, groupInfo.ToString());
+			lock (groupLocker) {
+				if (Groups.ContainsKey (tuple))
+					Groups [tuple] = groups;
+				else
+					Groups.Add (tuple, groups);
+			}
+			
+		}
+
+		public void UpdateInstant<T> (GroupInfo info)
+		{
+			UpdateInstant (typeof(T), info);
 		}
 
 		public void UpdateInstant<T> ()
 		{
-			UpdateInstant (typeof(T));
+			UpdateInstant (typeof(T));	
 		}
 
 		public void UpdateInstant (Type type)
 		{
-			lock (DatabaseLocker) {
-				if (MemoryStore.ContainsKey (type)) {
-					MemoryStore [type] = new Dictionary<int, Dictionary<int, object>> ();
+			UpdateInstant (type, GetGroupInfo (type));
+		}
+		
+		public void UpdateInstant (Type type, GroupInfo info)
+		{
+			var tuple = new Tuple<Type,string> (type, info.ToString());
+			lock (groupLocker) {
+				if (MemoryStore.ContainsKey (tuple)) {
+					MemoryStore [tuple] = new Dictionary<int, Dictionary<int, object>> ();
 				}
-				SetGroup (type);
 			}
+			FillGroups (type, info);
+			
 		}
 
 		public void ClearMemory ()
 		{
-			lock (DatabaseLocker) {
+			lock (groupLocker) {
 				MemoryStore.Clear ();
 				ObjectsDict.Clear ();
 				Objects.Clear ();
@@ -121,119 +172,176 @@ namespace Xamarin.Data
 
 		public string SectionHeader<T> (int section)
 		{
-			lock (DatabaseLocker) {
-				var t = typeof(T);
-				if (!Groups.ContainsKey (t))
-					SetGroup (t);			
-				return Groups [t] [section].Grouping;
-			}
+			return SectionHeader<T> (GetGroupInfo (typeof(T)), section);
 		}
 
+		public string SectionHeader<T> (GroupInfo info, int section)
+		{
+			lock (groupLocker) {
+				var t = typeof(T);
+				var tuple = new Tuple<Type,string> (t, info.ToString());
+				if (!Groups.ContainsKey (tuple))
+					FillGroups (t, info);			
+				return Groups [tuple] [section].GroupString;
+			}
+		}
+		
 		public string [] QuickJump<T> ()
 		{
-			lock (DatabaseLocker) {
+			return QuickJump<T> (GetGroupInfo<T> ());
+		}
+
+		public string [] QuickJump<T> (GroupInfo info)
+		{
+			lock (groupLocker) {
 				var t = typeof(T);
-				if (!Groups.ContainsKey (t))
-					SetGroup (t);
-				var groups = Groups [t];
-				var strings = groups.Select (x => x.Grouping [0].ToString ()).ToArray ();
+				var tuple = new Tuple<Type,string> (t, info.ToString());
+				if (!Groups.ContainsKey (tuple))
+					FillGroups (t, info);
+				var groups = Groups [tuple];
+				var strings = groups.Select (x => string.IsNullOrEmpty (x.GroupString) ? "" : x.GroupString [0].ToString ()).ToArray ();
 				return strings;
 			}
 		}
-
+		
 		public int NumberOfSections<T> ()
 		{
-			lock (DatabaseLocker) {
+			return NumberOfSections<T> (GetGroupInfo<T> ());
+		}
+
+		public int NumberOfSections<T> (GroupInfo info)
+		{
+			lock (groupLocker) {
 				var t = typeof(T);
-				if (!Groups.ContainsKey (t))
-					SetGroup (t);			
-				return Groups [t].Count;
+				var tuple = new Tuple<Type,string> (t, info.ToString());
+				if (!Groups.ContainsKey (tuple))
+					FillGroups (t, info);			
+				return Groups [tuple].Count;
 			}
 		}
 
 		public int RowsInSection<T> (int section)
 		{
-			lock (DatabaseLocker) {
-				var group = GetGroup<T> (section);
+			return RowsInSection<T> (GetGroupInfo<T> (), section);
+		}
+
+		public int RowsInSection<T> (GroupInfo info, int section)
+		{
+			lock (groupLocker) {
+				var group = GetGroup<T> (info, section);
 				return group.RowCount;
 			}
 		}
-
+		
 		private InstantDatabaseGroup GetGroup<T> (int section)
 		{
-			return GetGroup (typeof(T), section);
+			return GetGroup<T> (GetGroupInfo<T> (), section);
+		}
+
+		private InstantDatabaseGroup GetGroup<T> (GroupInfo info, int section)
+		{
+			return GetGroup (typeof(T), info, section);
 
 		}
 
-		private InstantDatabaseGroup GetGroup (Type t, int section)
+		private InstantDatabaseGroup GetGroup (Type t, GroupInfo info, int section)
 		{
-			lock (DatabaseLocker) {
-				if (!Groups.ContainsKey (t))
-					SetGroup (t);
-				var group = Groups [t];
+			lock (groupLocker) {
+				var tuple = new Tuple<Type,string> (t, info.ToString());
+				if (!Groups.ContainsKey (tuple))
+					FillGroups (t, info);
+				var group = Groups [tuple];
 				return group [section];
 			}
 		}
 
-		private void SetGroup (Type t)
+		private void FillGroups (Type t, GroupInfo info)
 		{
-			lock (DatabaseLocker) {
-				List<InstantDatabaseGroup> groups = this.Table<InstantDatabaseGroup> ().Where (x => x.ClassName == t.Name).OrderBy (x => x.Order).ToList ();
-				if (!Groups.ContainsKey (t))
-					Groups.Add (t, groups);
-				else
-					Groups [t] = groups;
+			List<InstantDatabaseGroup> groups;
+			
+			lock(DatabaseLocker){
+				groups = connection.Table<InstantDatabaseGroup> ().Where (x => x.ClassName == t.Name && x.Filter == info.Filter && x.GroupBy == info.GroupBy).OrderBy (x => x.GroupString).ToList ();
 			}
+			lock (groupLocker) {
+				var tuple = new Tuple<Type,string> (t, info.ToString());
+				if (!Groups.ContainsKey (tuple))
+					Groups.Add (tuple, groups);
+				else
+					Groups [tuple] = groups;
+			}
+
 		}
 
 		public T ObjectForRow<T> (int section, int row) where T : new()
 		{
-			lock (DatabaseLocker) {
+			return ObjectForRow<T> (GetGroupInfo (typeof(T)), section, row);
+		}
+
+		public T ObjectForRow<T> (GroupInfo info, int section, int row) where T : new()
+		{
+			lock (groupLocker) {
 				var type = typeof(T);
-				if (MemoryStore.ContainsKey (type)) {
-					var groups = MemoryStore [type];
-					if (groups.ContainsKey (section) && groups [section].ContainsKey (row)) {
-						return (T)groups [section] [row];
+				var tuple = new Tuple<Type,string> (type, info.ToString());
+				if (MemoryStore.ContainsKey (tuple)) {
+					var groups = MemoryStore [tuple];
+					if (groups.ContainsKey (section)) {
+						var g = groups [section]; 
+						if(g.ContainsKey (row))
+							return (T)groups [section] [row];
 					}
 				}
 				
-				Precache<T> (section);
-				return GetObject<T> (section, row);
+				Precache<T> (info, section);
+				return getObject<T> (info, section, row);
 			}
 		}
 
 		public T GetObject<T> (object primaryKey) where T : new()
 		{
-			lock (DatabaseLocker) {
+			lock (groupLocker) {
 				var type = typeof(T);
 				if (!ObjectsDict.ContainsKey (type)) {
 					ObjectsDict.Add (type, new Dictionary<object, object> ());
 				}
 				if (ObjectsDict [type].ContainsKey (primaryKey)) 
 					return (T)ObjectsDict [type] [primaryKey];
+				Console.WriteLine("object not in objectsdict");
 				var pk = GetPrimaryKeyProperty (type);
 				var query = string.Format ("select * from {0} where {1} = ? ", type.Name, pk.Name);
-				var item = this.Query<T> (query, primaryKey).FirstOrDefault ();
-				ObjectsDict [type].Add (primaryKey, item);
-				return item;
+				
+				lock(DatabaseLocker){
+					var item = connection.Query<T> (query, primaryKey).FirstOrDefault ();
+					if(item != null)
+						AddObjectToDict(item);
+					return item;
+				}
 			}
 
 		}
 
-		private T GetObject<T> (int section, int row) where T : new()
+		private T getObject<T> (GroupInfo info, int section, int row) where T : new()
 		{
-			lock (DatabaseLocker) {
-				var t = typeof(T);
-				var groupBy = GetGroupByProperty (t);
-				var orderBy = GetOrderByProperty (t);
-				var group = GetGroup<T> (section);
-				var query = string.Format ("select * from {0} where {1} = ? order by {2} LIMIT ? , 1", t.Name, groupBy.Name, orderBy.Name);
-				T item;
-				item = this.Query<T> (query, group.Grouping, row) [0];
+			T item;
+			var t = typeof(T);
+			var group = GetGroup<T> (info, section);
 
-				if (!MemoryStore.ContainsKey (t))
-					MemoryStore.Add (t, new Dictionary<int, Dictionary<int, object>> ());
-				var groups = MemoryStore [t];
+			string query;
+			if (string.IsNullOrEmpty (info.GroupBy))
+				query = string.Format ("select * from {0} {1} order by {2} LIMIT {3}, 1", t.Name, info.FilterString (true), info.OrderBy, row);
+			else
+				query = string.Format ("select * from {0} where {1} = ? {3} order by {2} LIMIT ? , 1", t.Name, info.GroupBy, info.OrderBy, info.FilterString (false));
+			
+			
+			lock(DatabaseLocker){
+				item = connection.Query<T> (query, group.GroupString, row).FirstOrDefault ();
+			}
+			if (item == null)
+				return new T ();
+			var tuple = new Tuple<Type,string> (t, info.ToString());
+			lock (groupLocker) {
+				if (!MemoryStore.ContainsKey (tuple))
+					MemoryStore.Add (tuple, new Dictionary<int, Dictionary<int, object>> ());
+				var groups = MemoryStore [tuple];
 				if (!groups.ContainsKey (section))
 					groups.Add (section, new Dictionary<int, object> ());
 				if (!groups [section].ContainsKey (row))
@@ -243,11 +351,12 @@ namespace Xamarin.Data
 				AddObjectToDict (item);
 				return item;
 			}
+
 		}
 
 		private void AddObjectToDict (object item)
 		{
-			lock (DatabaseLocker) {
+			lock (groupLocker) {
 				var t = item.GetType ();
 				var primaryKey = GetPrimaryKeyProperty (t);
 				object pk = primaryKey.GetValue (item, null);
@@ -264,9 +373,23 @@ namespace Xamarin.Data
 			}
 		}
 
+		public int GetObjectCount<T> ()
+		{
+			return GetObjectCount<T> (GetGroupInfo<T> ());
+		}
+
+		public int GetObjectCount<T> (GroupInfo info)
+		{
+			string query = string.Format ("Select count(*) from {0) {1}", typeof(T).Name, info.FilterString (true));
+			
+			lock(DatabaseLocker){
+				return connection.ExecuteScalar<int> (query);
+			}
+		}
+
 		public List<T> GetObjects<T> ()
 		{
-			lock (DatabaseLocker) {
+			lock (groupLocker) {
 				var t = typeof(T);
 				if (!Objects.ContainsKey (t))
 					Objects.Add (t, new List<object> ());
@@ -276,17 +399,25 @@ namespace Xamarin.Data
 
 		public void Precache<T> () where T : new()
 		{
-			var type = typeof(T);
-			FillGroups (type);
-			if (Groups [type].Count () == 0)
-				SetGroups (type);
+			Precache<T> (GetGroupInfo (typeof(T)));
+		}
 
-			foreach (var group in Groups[type]) {
-				if (group.Loaded)
-					continue;
-				cacheQueue.AddLast (delegate {
-					LoadItemsForGroup<T> (group);
-				});
+		public void Precache<T> (GroupInfo info) where T : new()
+		{
+			var type = typeof(T);
+			var tuple = new Tuple<Type,string> (type, info.ToString());
+			FillGroups (type, info);
+			lock (groupLocker) {
+				if (Groups [tuple].Count () == 0)
+					SetGroups (type, info);
+
+				foreach (var group in Groups[tuple]) {
+					if (group.Loaded)
+						continue;
+					cacheQueue.AddLast (delegate {
+						LoadItemsForGroup<T> (group);
+					});
+				}
 			}
 			StartQueue ();
 
@@ -294,8 +425,13 @@ namespace Xamarin.Data
 
 		public void Precache<T> (int section) where T : new()
 		{
+			Precache<T> (GetGroupInfo (typeof(T)), section);
+		}
+
+		public void Precache<T> (GroupInfo info, int section) where T : new()
+		{
 			var type = typeof(T);
-			var group = GetGroup (type, section);
+			var group = GetGroup (type, info, section);
 			cacheQueue.AddFirst (delegate {
 				LoadItemsForGroup<T> (group);
 			});
@@ -308,36 +444,46 @@ namespace Xamarin.Data
 				return;
 			Console.WriteLine ("Loading items for group");
 			var type = typeof(T);
-			var groupBy = GetGroupByProperty (type);
-			var orderBy = GetOrderByProperty (type);
-			var query = string.Format ("select * from {0} where {1} = ? order by {2} LIMIT ? , 50", type.Name, groupBy.Name, orderBy.Name);
+			string query  = string.Format ("select * from {0} where {1} = ? {3} order by {2} LIMIT ? , 50", type.Name, group.GroupBy, group.OrderBy, group.FilterString (false));
 			List<T> items;
-			bool hasMore = true;
 			int current = 0;
+			bool hasMore = true;
 			while (hasMore) {
-				lock (DatabaseLocker)
-					items = this.Query<T> (query, group.Grouping, current).ToList ();
-			
-			
-					if (!MemoryStore.ContainsKey (type)) {
-						MemoryStore.Add (type, new Dictionary<int, Dictionary<int, object>> ());
+				
+				if (string.IsNullOrEmpty (group.GroupBy))
+					query = string.Format ("select * from {0} {1} order by {2} LIMIT {3}, 50", type.Name, group.FilterString (true), group.OrderBy, current);
+				
+				lock(DatabaseLocker){
+					items = connection.Query<T> (query, group.GroupString, current).ToList ();
+				}
+				{
+					var tuple = new Tuple<Type,string> (type, group.ToString());
+					lock (groupLocker)
+					if (!MemoryStore.ContainsKey (tuple)) {
+						MemoryStore.Add (tuple, new Dictionary<int, Dictionary<int, object>> ());
 					}
-					if (!MemoryStore [type].ContainsKey (group.Order))
-						MemoryStore [type].Add (group.Order, new Dictionary<int, object> ());
+					lock (groupLocker)
+					if (!MemoryStore [tuple].ContainsKey (group.Order))
+						MemoryStore [tuple].Add (group.Order, new Dictionary<int, object> ());
 
 
-					var memoryGroup = MemoryStore [type] [group.Order];
+					Dictionary<int,object> memoryGroup;
+					lock (groupLocker)
+						memoryGroup = MemoryStore [tuple] [group.Order];
 					for (int i = 0; i< items.Count; i++) {
-						if (memoryGroup.ContainsKey (i + current))
-							memoryGroup [i + current] = items [i];
-						else
-							memoryGroup.Add (i + current, items [i]);
+						lock (groupLocker)
+						{
+							if (memoryGroup.ContainsKey (i + current))
+								memoryGroup [i + current] = items [i];
+							else
+								memoryGroup.Add (i + current, items [i]);
+						}
 						AddObjectToDict (items [i]);
 						Console.WriteLine (i + current);
 
 					}
 
-				
+				}
 				current += items.Count;
 				if (current == group.RowCount)
 					hasMore = false;
@@ -359,7 +505,8 @@ namespace Xamarin.Data
 					return;
 				queueIsRunning = true;
 			}
-			runQueue ();
+			Thread thread = new Thread (runQueue);
+			thread.Start ();
 		}
 
 		void runQueue ()
@@ -369,14 +516,16 @@ namespace Xamarin.Data
 					queueIsRunning = false;
 				return;
 			}
-			Task.Factory.StartNew (delegate {
-				Action action = cacheQueue.First ();
-				cacheQueue.Remove (action);
-				action ();
-			}).ContinueWith (delegate {
-				runQueue ();
-			});
+
+
+			//Task.Factory.StartNew (delegate {
+			Action action = cacheQueue.First ();
+			cacheQueue.Remove (action);
+			action ();
+			//}).ContinueWith (delegate {
+			runQueue ();
 		}
+
 
 		private PropertyInfo GetGroupByProperty (Type type)
 		{
@@ -410,6 +559,209 @@ namespace Xamarin.Data
 			}
 			return null;
 		}
+		#region sqlite
+
+		public int InsertAll (System.Collections.IEnumerable objects)
+		{
+			lock(DatabaseLocker)
+				return connection.InsertAll (objects);
+		}
+		
+		/// <summary>
+		/// Inserts all specified objects.
+		/// </summary>
+		/// <param name="objects">
+		/// An <see cref="IEnumerable"/> of the objects to insert.
+		/// </param>
+		/// <param name="extra">
+		/// Literal SQL code that gets placed into the command. INSERT {extra} INTO ...
+		/// </param>
+		/// <returns>
+		/// The number of rows added to the table.
+		/// </returns>
+		public int InsertAll (System.Collections.IEnumerable objects, string extra)
+		{
+			lock(DatabaseLocker)
+				return connection.InsertAll (objects,extra);
+		}
+		
+		/// <summary>
+		/// Inserts all specified objects.
+		/// </summary>
+		/// <param name="objects">
+		/// An <see cref="IEnumerable"/> of the objects to insert.
+		/// </param>
+		/// <param name="objType">
+		/// The type of object to insert.
+		/// </param>
+		/// <returns>
+		/// The number of rows added to the table.
+		/// </returns>
+		public int InsertAll (System.Collections.IEnumerable objects, Type objType)
+		{
+			
+			lock(DatabaseLocker)
+				return connection.InsertAll (objects,objType);
+		}
+		
+		/// <summary>
+		/// Inserts the given object and retrieves its
+		/// auto incremented primary key if it has one.
+		/// </summary>
+		/// <param name="obj">
+		/// The object to insert.
+		/// </param>
+		/// <returns>
+		/// The number of rows added to the table.
+		/// </returns>
+		public int Insert (object obj)
+		{
+			lock(DatabaseLocker)
+				return connection.Insert (obj);
+		}
+		
+		/// <summary>
+		/// Inserts the given object and retrieves its
+		/// auto incremented primary key if it has one.
+		/// If a UNIQUE constraint violation occurs with
+		/// some pre-existing object, this function deletes
+		/// the old object.
+		/// </summary>
+		/// <param name="obj">
+		/// The object to insert.
+		/// </param>
+		/// <returns>
+		/// The number of rows modified.
+		/// </returns>
+		public int InsertOrReplace (object obj)
+		{
+			lock(DatabaseLocker)
+				return connection.InsertOrReplace (obj);
+		}
+		
+		/// <summary>
+		/// Inserts the given object and retrieves its
+		/// auto incremented primary key if it has one.
+		/// </summary>
+		/// <param name="obj">
+		/// The object to insert.
+		/// </param>
+		/// <param name="objType">
+		/// The type of object to insert.
+		/// </param>
+		/// <returns>
+		/// The number of rows added to the table.
+		/// </returns>
+		public int Insert (object obj, Type objType)
+		{
+			lock(DatabaseLocker)
+				return connection.Insert (obj,objType);
+		}
+		
+		/// <summary>
+		/// Inserts the given object and retrieves its
+		/// auto incremented primary key if it has one.
+		/// If a UNIQUE constraint violation occurs with
+		/// some pre-existing object, this function deletes
+		/// the old object.
+		/// </summary>
+		/// <param name="obj">
+		/// The object to insert.
+		/// </param>
+		/// <param name="objType">
+		/// The type of object to insert.
+		/// </param>
+		/// <returns>
+		/// The number of rows modified.
+		/// </returns>
+		public int InsertOrReplace (object obj, Type objType)
+		{
+			lock(DatabaseLocker)
+				return connection.InsertOrReplace (obj,objType);
+		}
+		
+		/// <summary>
+		/// Inserts the given object and retrieves its
+		/// auto incremented primary key if it has one.
+		/// </summary>
+		/// <param name="obj">
+		/// The object to insert.
+		/// </param>
+		/// <param name="extra">
+		/// Literal SQL code that gets placed into the command. INSERT {extra} INTO ...
+		/// </param>
+		/// <returns>
+		/// The number of rows added to the table.
+		/// </returns>
+		public int Insert (object obj, string extra)
+		{
+			lock(DatabaseLocker)
+				return connection.Insert (obj,extra);
+		}
+		
+		/// <summary>
+		/// Inserts the given object and retrieves its
+		/// auto incremented primary key if it has one.
+		/// </summary>
+		/// <param name="obj">
+		/// The object to insert.
+		/// </param>
+		/// <param name="extra">
+		/// Literal SQL code that gets placed into the command. INSERT {extra} INTO ...
+		/// </param>
+		/// <param name="objType">
+		/// The type of object to insert.
+		/// </param>
+		/// <returns>
+		/// The number of rows added to the table.
+		/// </returns>
+		public int Insert (object obj, string extra, Type objType)
+		{
+			lock(DatabaseLocker)
+				return connection.Insert (obj,extra,objType);
+		}
+
+		public int Execute (string query, params object[] args)
+		{
+			lock(DatabaseLocker)
+				return connection.Execute (query, args);
+		}
+		public List<T> Query<T> (string query, params object[] args) where T : new()
+		{
+			lock(DatabaseLocker)
+				return connection.Query<T> (query, args);
+
+		}
+		
+		public int Delete (object objectToDelete)
+		{
+			lock(DatabaseLocker)
+				return connection.Delete (objectToDelete);
+		}
+		public int Update (object obj)
+		{
+			lock(DatabaseLocker)
+				return connection.Update (obj);
+		}
+
+		
+		public int UpdateAll (System.Collections.IEnumerable objects)
+		{
+			lock (DatabaseLocker)
+				return connection.UpdateAll (objects);
+		}
+		public int CreateTable<T> () where T : new()
+		{
+			lock(DatabaseLocker)
+				return connection.CreateTable<T> ();
+		}
+		public T ExecuteScalar<T> (string query, params object[] args) where T : new()
+		{
+			lock(DatabaseLocker)
+				return connection.ExecuteScalar<T>(query,args);
+		}
+
+		#endregion
 
 	}
 

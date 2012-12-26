@@ -45,5 +45,7 @@
     <Compile Include="InstantDatabase.cs" />
     <Compile Include="SQLite.cs" />
     <Compile Include="Model\Group.cs" />
+    <Compile Include="Model\GroupInfo.cs" />
+    <Compile Include="SQLiteAsync.cs" />
   </ItemGroup>
 </Project>
