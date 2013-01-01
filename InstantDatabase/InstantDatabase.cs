@@ -56,12 +56,14 @@ namespace Xamarin.Data
 
 		public void MakeClassInstant (Type type)
 		{
-			MakeClassInstant (type, GetGroupInfo (type));
+			MakeClassInstant (type, null);
 			
 		}
 		
 		public void MakeClassInstant (Type type, GroupInfo info)
 		{
+			if(info == null)
+				info = GetGroupInfo(type);
 			SetGroups (type, info);
 			FillGroups (type, info);
 			if (Groups [new Tuple<Type,string> (type, info.ToString())].Count () == 0)
@@ -91,12 +93,28 @@ namespace Xamarin.Data
 
 		private void SetGroups (Type type, GroupInfo groupInfo)
 		{
+			List<InstantDatabaseGroup> groups = CreateGroupInfo (type, groupInfo);
+			lock(DatabaseLocker){
+				connection.InsertAll (groups);
+			}
+			var tuple = new Tuple<Type,string> (type, groupInfo.ToString());
+			lock (groupLocker) {
+				if (Groups.ContainsKey (tuple))
+					Groups [tuple] = groups;
+				else
+					Groups.Add (tuple, groups);
+			}
+			
+		}
+
+		private List<InstantDatabaseGroup> CreateGroupInfo(Type type, GroupInfo groupInfo)
+		{
 			List<InstantDatabaseGroup> groups;
 			lock(DatabaseLocker){
 				if (string.IsNullOrEmpty (groupInfo.GroupBy))
-					groups = new List<InstantDatabaseGroup> (){new InstantDatabaseGroup{GroupString = ""}};
+				groups = new List<InstantDatabaseGroup> (){new InstantDatabaseGroup{GroupString = ""}};
 				else {
-					var query = string.Format ("select distinct {1} as GroupString from {0} order by {2}", type.Name, groupInfo.GroupBy, groupInfo.OrderBy);
+					var query = string.Format ("select distinct {1} as GroupString from {0} {3} order by {2}", type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.FilterString(true));
 					groups = connection.Query<InstantDatabaseGroup> (query).ToList ();
 				}
 				var deleteQuery = string.Format ("delete from InstantDatabaseGroup where ClassName = ? and GroupBy = ? and OrderBy = ? and Filter = ?");
@@ -118,19 +136,7 @@ namespace Xamarin.Data
 					group.RowCount = connection.ExecuteScalar<int> (rowQuery, group.GroupString);
 				}
 			}
-	
-
-			lock(DatabaseLocker){
-				connection.InsertAll (groups);
-			}
-			var tuple = new Tuple<Type,string> (type, groupInfo.ToString());
-			lock (groupLocker) {
-				if (Groups.ContainsKey (tuple))
-					Groups [tuple] = groups;
-				else
-					Groups.Add (tuple, groups);
-			}
-			
+			return groups;
 		}
 
 		public void UpdateInstant<T> (GroupInfo info)
@@ -145,11 +151,13 @@ namespace Xamarin.Data
 
 		public void UpdateInstant (Type type)
 		{
-			UpdateInstant (type, GetGroupInfo (type));
+			UpdateInstant (type, null);
 		}
 		
 		public void UpdateInstant (Type type, GroupInfo info)
 		{
+			if(info == null)
+				info = GetGroupInfo (type);
 			var tuple = new Tuple<Type,string> (type, info.ToString());
 			lock (groupLocker) {
 				if (MemoryStore.ContainsKey (tuple)) {
@@ -177,11 +185,13 @@ namespace Xamarin.Data
 
 		public string SectionHeader<T> (GroupInfo info, int section)
 		{
+			if (info == null)
+				info = GetGroupInfo<T> ();
 			lock (groupLocker) {
 				var t = typeof(T);
 				var tuple = new Tuple<Type,string> (t, info.ToString());
-				if (!Groups.ContainsKey (tuple))
-					FillGroups (t, info);			
+				if (!Groups.ContainsKey (tuple) || Groups [tuple].Count<= section)
+					FillGroups (t, info);
 				return Groups [tuple] [section].GroupString;
 			}
 		}
@@ -193,6 +203,8 @@ namespace Xamarin.Data
 
 		public string [] QuickJump<T> (GroupInfo info)
 		{
+			if (info == null)
+				info = GetGroupInfo<T> ();
 			lock (groupLocker) {
 				var t = typeof(T);
 				var tuple = new Tuple<Type,string> (t, info.ToString());
@@ -211,6 +223,8 @@ namespace Xamarin.Data
 
 		public int NumberOfSections<T> (GroupInfo info)
 		{
+			if (info == null)
+				info = GetGroupInfo<T> ();
 			lock (groupLocker) {
 				var t = typeof(T);
 				var tuple = new Tuple<Type,string> (t, info.ToString());
@@ -227,6 +241,8 @@ namespace Xamarin.Data
 
 		public int RowsInSection<T> (GroupInfo info, int section)
 		{
+			if (info == null)
+				info = GetGroupInfo<T> ();
 			lock (groupLocker) {
 				var group = GetGroup<T> (info, section);
 				return group.RowCount;
@@ -258,9 +274,12 @@ namespace Xamarin.Data
 		private void FillGroups (Type t, GroupInfo info)
 		{
 			List<InstantDatabaseGroup> groups;
-			
-			lock(DatabaseLocker){
-				groups = connection.Table<InstantDatabaseGroup> ().Where (x => x.ClassName == t.Name && x.Filter == info.Filter && x.GroupBy == info.GroupBy).OrderBy (x => x.GroupString).ToList ();
+			if (info.Ignore) {
+				groups = CreateGroupInfo(t,info);
+			} else {
+				lock (DatabaseLocker) {
+					groups = connection.Table<InstantDatabaseGroup> ().Where (x => x.ClassName == t.Name && x.Filter == info.Filter && x.GroupBy == info.GroupBy).OrderBy (x => x.GroupString).ToList ();
+				}
 			}
 			lock (groupLocker) {
 				var tuple = new Tuple<Type,string> (t, info.ToString());
@@ -279,6 +298,8 @@ namespace Xamarin.Data
 
 		public T ObjectForRow<T> (GroupInfo info, int section, int row) where T : new()
 		{
+			if (info == null)
+				info = GetGroupInfo<T> ();
 			lock (groupLocker) {
 				var type = typeof(T);
 				var tuple = new Tuple<Type,string> (type, info.ToString());
@@ -375,12 +396,16 @@ namespace Xamarin.Data
 
 		public int GetObjectCount<T> ()
 		{
-			return GetObjectCount<T> (GetGroupInfo<T> ());
+			return GetObjectCount<T> (null);
 		}
 
 		public int GetObjectCount<T> (GroupInfo info)
 		{
-			string query = string.Format ("Select count(*) from {0) {1}", typeof(T).Name, info.FilterString (true));
+			if (info == null)
+				info = GetGroupInfo<T> ();
+			var filterString = info.FilterString (true);
+			var t = typeof(T);
+			string query =  "Select count(*) from " + t.Name + " " + filterString;
 			
 			lock(DatabaseLocker){
 				return connection.ExecuteScalar<int> (query);
@@ -404,6 +429,8 @@ namespace Xamarin.Data
 
 		public void Precache<T> (GroupInfo info) where T : new()
 		{
+			if (info == null)
+				info = GetGroupInfo<T> ();
 			var type = typeof(T);
 			var tuple = new Tuple<Type,string> (type, info.ToString());
 			FillGroups (type, info);
@@ -430,6 +457,8 @@ namespace Xamarin.Data
 
 		public void Precache<T> (GroupInfo info, int section) where T : new()
 		{
+			if (info == null)
+				info = GetGroupInfo<T> ();
 			var type = typeof(T);
 			var group = GetGroup (type, info, section);
 			cacheQueue.AddFirst (delegate {
@@ -479,7 +508,6 @@ namespace Xamarin.Data
 								memoryGroup.Add (i + current, items [i]);
 						}
 						AddObjectToDict (items [i]);
-						Console.WriteLine (i + current);
 
 					}
 
@@ -511,17 +539,27 @@ namespace Xamarin.Data
 
 		void runQueue ()
 		{
-			if (cacheQueue.Count == 0) {
-				lock (locker)
+			Action action;
+			lock (locker) {
+				if (cacheQueue.Count == 0) {
 					queueIsRunning = false;
-				return;
+					return;
+				}
+
+
+				try{
+				//Task.Factory.StartNew (delegate {
+				action = cacheQueue.First ();
+				cacheQueue.Remove (action);
+				}
+				catch(Exception ex)
+				{
+					runQueue();
+					return;
+				}
 			}
-
-
-			//Task.Factory.StartNew (delegate {
-			Action action = cacheQueue.First ();
-			cacheQueue.Remove (action);
-			action ();
+			if(action  != null)
+				action ();
 			//}).ContinueWith (delegate {
 			runQueue ();
 		}

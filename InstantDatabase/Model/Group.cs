@@ -22,6 +22,8 @@ namespace Xamarin.Data
 		public string OrderBy { get; set; }
 		[Indexed]
 		public string Filter { get; set;}
+		[Ignore]
+		public bool Ignore { get; set; }
 
 		public string FilterString(bool includeWhere)
 		{
