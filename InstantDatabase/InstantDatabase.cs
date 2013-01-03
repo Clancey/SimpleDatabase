@@ -348,9 +348,9 @@ namespace Xamarin.Data
 
 			string query;
 			if (string.IsNullOrEmpty (info.GroupBy))
-				query = string.Format ("select * from {0} {1} order by {2} LIMIT {3}, 1", t.Name, info.FilterString (true), info.OrderBy, row);
+				query = string.Format ("select * from {0} {1} {2} LIMIT {3}, 1", t.Name, info.FilterString (true), info.OrderByString(true), row);
 			else
-				query = string.Format ("select * from {0} where {1} = ? {3} order by {2} LIMIT ? , 1", t.Name, info.GroupBy, info.OrderBy, info.FilterString (false));
+				query = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 1", t.Name, info.GroupBy, info.OrderByString(true), info.FilterString (false));
 			
 			
 			lock(DatabaseLocker){
@@ -406,6 +406,23 @@ namespace Xamarin.Data
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
 			string query =  "Select count(*) from " + t.Name + " " + filterString;
+			
+			lock(DatabaseLocker){
+				return connection.ExecuteScalar<int> (query);
+			}
+		}
+		public int GetDistinctObjectCount<T> (string column)
+		{
+			return GetDistinctObjectCount<T> (null,column);
+		}
+		
+		public int GetDistinctObjectCount<T> (GroupInfo info,string column)
+		{
+			if (info == null)
+				info = GetGroupInfo<T> ();
+			var filterString = info.FilterString (true);
+			var t = typeof(T);
+			string query =  string.Format("Select distinct count({0}) from ",column) + t.Name + " " + filterString;
 			
 			lock(DatabaseLocker){
 				return connection.ExecuteScalar<int> (query);
@@ -473,14 +490,14 @@ namespace Xamarin.Data
 				return;
 			Console.WriteLine ("Loading items for group");
 			var type = typeof(T);
-			string query  = string.Format ("select * from {0} where {1} = ? {3} order by {2} LIMIT ? , 50", type.Name, group.GroupBy, group.OrderBy, group.FilterString (false));
+			string query  = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 50", type.Name, group.GroupBy, group.OrderByString(true), group.FilterString (false));
 			List<T> items;
 			int current = 0;
 			bool hasMore = true;
 			while (hasMore) {
 				
 				if (string.IsNullOrEmpty (group.GroupBy))
-					query = string.Format ("select * from {0} {1} order by {2} LIMIT {3}, 50", type.Name, group.FilterString (true), group.OrderBy, current);
+					query = string.Format ("select * from {0} {1} {2} LIMIT {3}, 50", type.Name, group.FilterString (true), group.OrderByString(true), current);
 				
 				lock(DatabaseLocker){
 					items = connection.Query<T> (query, group.GroupString, current).ToList ();

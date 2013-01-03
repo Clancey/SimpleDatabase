@@ -25,6 +25,15 @@ namespace Xamarin.Data
 		[Ignore]
 		public bool Ignore { get; set; }
 
+		public string OrderByString(bool includeOrerBy = true)
+		{
+			if (string.IsNullOrEmpty (OrderBy))
+				return "";
+			string orderby = includeOrerBy ? " order by " : " , ";
+			orderby += OrderBy;
+			return orderby;
+		}
+
 		public string FilterString(bool includeWhere)
 		{
 			if (string.IsNullOrEmpty (Filter))
