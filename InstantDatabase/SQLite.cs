@@ -1960,6 +1960,8 @@ namespace SQLite
 					return SQLite3.ColumnString (stmt, index);
 				} else if (clrType == typeof(Int32)) {
 					return (int)SQLite3.ColumnInt (stmt, index);
+				} else if (clrType == typeof(int?)) {
+					return (int?)SQLite3.ColumnInt (stmt, index);
 				} else if (clrType == typeof(Boolean)) {
 					return SQLite3.ColumnInt (stmt, index) == 1;
 				} else if (clrType == typeof(double)) {
