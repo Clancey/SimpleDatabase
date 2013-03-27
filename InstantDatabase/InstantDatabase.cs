@@ -71,12 +71,12 @@ namespace Xamarin.Data
 
 		}
 
-		private GroupInfo GetGroupInfo<T> ()
+		public GroupInfo GetGroupInfo<T> ()
 		{
 			return GetGroupInfo (typeof(T));
 		}
 
-		private GroupInfo GetGroupInfo (Type type)
+		public GroupInfo GetGroupInfo (Type type)
 		{
 			if (GroupInfoDict.ContainsKey (type))
 				return GroupInfoDict [type];
@@ -174,6 +174,13 @@ namespace Xamarin.Data
 				MemoryStore.Clear ();
 				ObjectsDict.Clear ();
 				Objects.Clear ();
+				GC.Collect ();
+			}
+		}
+		public void ClearMemeoryStore()
+		{
+			lock (groupLocker) {
+				MemoryStore.Clear ();
 				GC.Collect ();
 			}
 		}
@@ -477,6 +484,7 @@ namespace Xamarin.Data
 				return connection.Query<T> (query).ToList();
 			}
 		}
+
 		public void Precache<T> () where T : new()
 		{
 			Precache<T> (GetGroupInfo (typeof(T)));

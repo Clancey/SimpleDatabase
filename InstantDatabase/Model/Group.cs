@@ -25,6 +25,17 @@ namespace Xamarin.Data
 		[Ignore]
 		public bool Ignore { get; set; }
 
+		public GroupInfo Clone ()
+		{
+			return new GroupInfo{
+				GroupBy = this.GroupBy,
+				GroupString = this.GroupString,
+				OrderBy = this.OrderBy,
+				Filter = this.Filter,
+				Ignore = this.Ignore,
+			};
+		}
+
 		public string OrderByString(bool includeOrerBy = true)
 		{
 			if (string.IsNullOrEmpty (OrderBy))

@@ -17,7 +17,7 @@
     <DebugType>full</DebugType>
     <Optimize>False</Optimize>
     <OutputPath>bin\Debug</OutputPath>
-    <DefineConstants>DEBUG;</DefineConstants>
+    <DefineConstants>DEBUG;iOS</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <ConsolePause>False</ConsolePause>
@@ -29,6 +29,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <ConsolePause>False</ConsolePause>
+    <DefineConstants>iOS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -45,7 +46,6 @@
     <Compile Include="InstantDatabase.cs" />
     <Compile Include="SQLite.cs" />
     <Compile Include="Model\Group.cs" />
-    <Compile Include="Model\GroupInfo.cs" />
     <Compile Include="SQLiteAsync.cs" />
   </ItemGroup>
 </Project>
