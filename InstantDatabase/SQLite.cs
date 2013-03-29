@@ -2616,10 +2616,16 @@ namespace SQLite
 		public static IntPtr Prepare2 (IntPtr db, string query)
 		{
 			IntPtr stmt;
+						try{
+							//Console.WriteLine(query);
 			var r = Prepare2 (db, query, query.Length, out stmt, IntPtr.Zero);
 			if (r != Result.OK) {
 				throw SQLiteException.New (r, GetErrmsg (db));
 			}
+						} catch(Exception ex)
+						{
+							Console.WriteLine(ex);
+						}
 			return stmt;
 		}
 					

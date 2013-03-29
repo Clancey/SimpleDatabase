@@ -10,6 +10,58 @@ using System.Threading;
 
 namespace Xamarin.Data
 {
+
+	public static class Tracer
+	{
+		public static void Trace(string message)
+		{
+			return;
+			var stackTrace = new System.Diagnostics.StackTrace();
+			Console.WriteLine(stackTrace.GetFrame(3).GetMethod().Name + " " + message);
+		}
+	}
+	public class ThreadLock: IDisposable{
+
+		enum Status{
+			Acquiring,
+			Acquired,
+		}
+		Status status;
+		Object objLock;
+		static Thread lockOwner;
+		public static ThreadLock Lock(object objLock)
+		{         
+			return new ThreadLock(objLock);  
+			       
+		}
+		
+		public ThreadLock(object objLock)
+		{
+
+			this.status = Status.Acquiring; //useful for detecting dead-lock
+			this.objLock = objLock; 
+			
+			//Console.WriteLine("Lock {0}",status);
+			//collect useful information about the context such 
+			//as stacktrace, time to acquire the lock(T1)
+			Monitor.Enter(objLock); 
+
+			//lockOwner = Thread.CurrentThread;
+			this.status = Status.Acquired; 
+			//Console.WriteLine("Lock {0}",status);
+			//lock is acuired, so collect acquired-time(T2)
+			//[T2-T1 = time taken to acquire lock]
+		}
+		
+		public void Dispose()
+		{
+
+			Monitor.Exit(objLock);
+			//Console.WriteLine("Lock Ended");
+			//T3: activity in a lock is over
+			//Serialize this class for doing analysis of thread-lock activity time 
+		}
+	}
 	public class InstantDatabase 
 	{
 		Dictionary<Tuple<Type,string>,Dictionary<int,Dictionary<int,Object>>> MemoryStore = new Dictionary<Tuple<Type,string>, Dictionary<int, Dictionary<int, object>>> ();
@@ -19,6 +71,7 @@ namespace Xamarin.Data
 		Dictionary<Type,GroupInfo> GroupInfoDict = new Dictionary<Type, GroupInfo> ();
 		public static object Locker = new object ();
 		object groupLocker = new object ();
+		object memStoreLocker = new object ();
 		SQLiteConnection connection;
 		public InstantDatabase(SQLiteConnection sqliteConnection)
 		{
@@ -98,7 +151,7 @@ namespace Xamarin.Data
 				connection.InsertAll (groups);
 			}
 			var tuple = new Tuple<Type,string> (type, groupInfo.ToString());
-			lock (groupLocker) {
+			using(ThreadLock.Lock(groupLocker)) {
 				if (Groups.ContainsKey (tuple))
 					Groups [tuple] = groups;
 				else
@@ -132,9 +185,9 @@ namespace Xamarin.Data
 					rowQuery = string.Format ("select count(*) from {0} {1}", type.Name, groupInfo.FilterString (true));
 				else
 					rowQuery = string.Format ("select count(*) from {0} where {1} = ? {2}", type.Name, groupInfo.GroupBy, groupInfo.FilterString (false));
-				lock(Locker){
+				//lock(Locker){
 					group.RowCount = connection.ExecuteScalar<int> (rowQuery, group.GroupString);
-				}
+				//}
 			}
 			return groups;
 		}
@@ -159,7 +212,7 @@ namespace Xamarin.Data
 			if(info == null)
 				info = GetGroupInfo (type);
 			var tuple = new Tuple<Type,string> (type, info.ToString());
-			lock (groupLocker) {
+			using(ThreadLock.Lock(memStoreLocker)) {
 				if (MemoryStore.ContainsKey (tuple)) {
 					MemoryStore [tuple] = new Dictionary<int, Dictionary<int, object>> ();
 				}
@@ -170,18 +223,18 @@ namespace Xamarin.Data
 
 		public void ClearMemory ()
 		{
-			lock (groupLocker) {
+			using(ThreadLock.Lock (memStoreLocker)) {
 				MemoryStore.Clear ();
 				ObjectsDict.Clear ();
 				Objects.Clear ();
-				GC.Collect ();
+				//GC.Collect ();
 			}
 		}
 		public void ClearMemeoryStore()
 		{
-			lock (groupLocker) {
+			using(ThreadLock.Lock (memStoreLocker)) {
 				MemoryStore.Clear ();
-				GC.Collect ();
+				//GC.Collect ();
 			}
 		}
 
@@ -194,7 +247,8 @@ namespace Xamarin.Data
 		{
 			if (info == null)
 				info = GetGroupInfo<T> ();
-			lock (groupLocker) {
+
+			using(ThreadLock.Lock (groupLocker)) {
 				var t = typeof(T);
 				var tuple = new Tuple<Type,string> (t, info.ToString());
 				if (!Groups.ContainsKey (tuple) || Groups [tuple].Count<= section)
@@ -212,7 +266,7 @@ namespace Xamarin.Data
 		{
 			if (info == null)
 				info = GetGroupInfo<T> ();
-			lock (groupLocker) {
+			using(ThreadLock.Lock (groupLocker)) {
 				var t = typeof(T);
 				var tuple = new Tuple<Type,string> (t, info.ToString());
 				if (!Groups.ContainsKey (tuple))
@@ -232,7 +286,7 @@ namespace Xamarin.Data
 		{
 			if (info == null)
 				info = GetGroupInfo<T> ();
-			lock (groupLocker) {
+			using(ThreadLock.Lock (groupLocker)) {
 				var t = typeof(T);
 				var tuple = new Tuple<Type,string> (t, info.ToString());
 				if (!Groups.ContainsKey (tuple))
@@ -250,7 +304,7 @@ namespace Xamarin.Data
 		{
 			if (info == null)
 				info = GetGroupInfo<T> ();
-			lock (groupLocker) {
+			using(ThreadLock.Lock (groupLocker)) {
 				var group = GetGroup<T> (info, section);
 				return group.RowCount;
 			}
@@ -269,7 +323,7 @@ namespace Xamarin.Data
 
 		private InstantDatabaseGroup GetGroup (Type t, GroupInfo info, int section)
 		{
-			lock (groupLocker) {
+
 				var tuple = new Tuple<Type,string> (t, info.ToString());
 				List<InstantDatabaseGroup> group = null;
 				int count = 0;
@@ -277,7 +331,9 @@ namespace Xamarin.Data
 				{
 					if(count > 0)
 						Console.WriteLine("Trying to fill groups: {0}",count);
-					Groups.TryGetValue(tuple,out group);
+					using(ThreadLock.Lock(groupLocker)){
+						Groups.TryGetValue(tuple,out group);
+					}
 					if(group == null)
 					{
 						count ++;
@@ -287,7 +343,7 @@ namespace Xamarin.Data
 				if(group == null)
 					return null;
 				return group [section];
-			}
+
 		}
 
 		private void FillGroups (Type t, GroupInfo info)
@@ -296,11 +352,11 @@ namespace Xamarin.Data
 			if (info.Ignore) {
 				groups = CreateGroupInfo(t,info);
 			} else {
-				lock (Locker) {
+				//lock (Locker) {
 					groups = connection.Table<InstantDatabaseGroup> ().Where (x => x.ClassName == t.Name && x.Filter == info.Filter && x.GroupBy == info.GroupBy).OrderBy (x => x.GroupString).ToList ();
-				}
+				//}
 			}
-			lock (groupLocker) {
+			using(ThreadLock.Lock (groupLocker)) {
 				var tuple = new Tuple<Type,string> (t, info.ToString());
 				if (!Groups.ContainsKey (tuple))
 					Groups.Add (tuple, groups);
@@ -319,7 +375,7 @@ namespace Xamarin.Data
 		{
 			if (info == null)
 				info = GetGroupInfo<T> ();
-			lock (groupLocker) {
+			using(ThreadLock.Lock (memStoreLocker)) {
 				var type = typeof(T);
 				var tuple = new Tuple<Type,string> (type, info.ToString());
 				if (MemoryStore.ContainsKey (tuple)) {
@@ -339,24 +395,23 @@ namespace Xamarin.Data
 		public T GetObject<T> (object primaryKey) where T : new()
 		{
 			try{
-			lock (groupLocker) {
 				var type = typeof(T);
-				if (!ObjectsDict.ContainsKey (type)) {
+				if (!ObjectsDict.ContainsKey (type))
 					ObjectsDict.Add (type, new Dictionary<object, object> ());
-				}
 				if (ObjectsDict [type].ContainsKey (primaryKey)) 
 					return (T)ObjectsDict [type] [primaryKey];
 				Console.WriteLine("object not in objectsdict");
 				var pk = GetPrimaryKeyProperty (type);
 				var query = string.Format ("select * from {0} where {1} = ? ", type.Name, pk.Name);
-				
+
+				T item;
 				lock(Locker){
-					var item = connection.Query<T> (query, primaryKey).FirstOrDefault ();
+					item = connection.Query<T> (query, primaryKey).FirstOrDefault ();
+				}
 					if(item != null)
 						AddObjectToDict(item);
 					return item;
-				}
-			}
+			
 			}
 			catch(Exception ex)
 			{
@@ -384,7 +439,7 @@ namespace Xamarin.Data
 			if (item == null)
 				return new T ();
 			var tuple = new Tuple<Type,string> (t, info.ToString());
-			lock (groupLocker) {
+			using(ThreadLock.Lock (memStoreLocker)) {
 				if (!MemoryStore.ContainsKey (tuple))
 					MemoryStore.Add (tuple, new Dictionary<int, Dictionary<int, object>> ());
 				var groups = MemoryStore [tuple];
@@ -402,9 +457,11 @@ namespace Xamarin.Data
 
 		private void AddObjectToDict (object item)
 		{
-			lock (groupLocker) {
+			using(ThreadLock.Lock (groupLocker)) {
 				var t = item.GetType ();
 				var primaryKey = GetPrimaryKeyProperty (t);
+				if(primaryKey == null)
+					return;
 				object pk = primaryKey.GetValue (item, null);
 				if (!ObjectsDict.ContainsKey (t))
 					ObjectsDict.Add (t, new Dictionary<object, object> ());
@@ -455,7 +512,7 @@ namespace Xamarin.Data
 		}
 
 
-		public T GetObject<T> (int index) where T  : new()
+		public T GetObjectByIndex<T> (int index) where T  : new()
 		{
 			T item;
 			var t = typeof(T);
@@ -492,12 +549,13 @@ namespace Xamarin.Data
 
 		public void Precache<T> (GroupInfo info) where T : new()
 		{
+			return;
 			if (info == null)
 				info = GetGroupInfo<T> ();
 			var type = typeof(T);
 			var tuple = new Tuple<Type,string> (type, info.ToString());
 			FillGroups (type, info);
-			lock (groupLocker) {
+			using(ThreadLock.Lock (groupLocker)) {
 				if (Groups [tuple].Count () == 0)
 					SetGroups (type, info);
 
@@ -520,6 +578,7 @@ namespace Xamarin.Data
 
 		public void Precache<T> (GroupInfo info, int section) where T : new()
 		{
+			//return;
 			if (info == null)
 				info = GetGroupInfo<T> ();
 			var type = typeof(T);
@@ -550,18 +609,28 @@ namespace Xamarin.Data
 				}
 				{
 					var tuple = new Tuple<Type,string> (type, group.ToString());
-					lock (groupLocker)
+					using(ThreadLock.Lock (memStoreLocker)){
 					if (!MemoryStore.ContainsKey (tuple)) {
 						MemoryStore.Add (tuple, new Dictionary<int, Dictionary<int, object>> ());
+						}
 					}
-					lock (groupLocker)
+					using(ThreadLock.Lock (memStoreLocker)){
 					if (!MemoryStore [tuple].ContainsKey (group.Order))
+							try{
 						MemoryStore [tuple].Add (group.Order, new Dictionary<int, object> ());
+						}
+						catch(Exception ex)
+						{
+
+						}
+
+					}
 
 
 					Dictionary<int,object> memoryGroup;
-					lock (groupLocker)
+					using(ThreadLock.Lock (memStoreLocker)){
 						memoryGroup = MemoryStore [tuple] [group.Order];
+					}
 					for (int i = 0; i< items.Count; i++) {
 						lock (groupLocker)
 						{
@@ -664,8 +733,9 @@ namespace Xamarin.Data
 
 		public int InsertAll (System.Collections.IEnumerable objects)
 		{
-			lock(Locker)
+			lock(Locker){
 				return connection.InsertAll (objects);
+			}
 		}
 		
 		/// <summary>
@@ -829,7 +899,7 @@ namespace Xamarin.Data
 		}
 		public List<T> Query<T> (string query, params object[] args) where T : new()
 		{
-			lock(Locker)
+			//lock(Locker)
 				return connection.Query<T> (query, args);
 
 		}
@@ -858,7 +928,7 @@ namespace Xamarin.Data
 		}
 		public T ExecuteScalar<T> (string query, params object[] args) where T : new()
 		{
-			lock(Locker)
+			//lock(Locker)
 				return connection.ExecuteScalar<T>(query,args);
 		}
 
