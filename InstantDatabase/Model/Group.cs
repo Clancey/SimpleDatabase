@@ -22,8 +22,7 @@ namespace Xamarin.Data
 		public string OrderBy { get; set; }
 		[Indexed]
 		public string Filter { get; set;}
-		[Ignore]
-		public bool Ignore { get; set; }
+		public int Limit {get;set;}
 
 		public GroupInfo Clone ()
 		{
@@ -32,7 +31,6 @@ namespace Xamarin.Data
 				GroupString = this.GroupString,
 				OrderBy = this.OrderBy,
 				Filter = this.Filter,
-				Ignore = this.Ignore,
 			};
 		}
 
@@ -52,6 +50,11 @@ namespace Xamarin.Data
 			string filter = includeWhere ? " where " : " and ";
 			filter += Filter;
 			return filter;
+		}
+
+		public string LimitString()
+		{
+			return (Limit > 0 ? " Limit " + Limit : "");
 		}
 
 		public override bool Equals (object obj)

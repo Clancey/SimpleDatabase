@@ -86,9 +86,6 @@ namespace Xamarin.Data
 
 		void init ()
 		{
-			lock(Locker){
-				connection.CreateTable<InstantDatabaseGroup> ();
-			}
 #if iOS
 			MonoTouch.Foundation.NSNotificationCenter.DefaultCenter.AddObserver("UIApplicationDidReceiveMemoryWarningNotification",delegate{
 				ClearMemory();
@@ -147,9 +144,7 @@ namespace Xamarin.Data
 		private void SetGroups (Type type, GroupInfo groupInfo)
 		{
 			List<InstantDatabaseGroup> groups = CreateGroupInfo (type, groupInfo);
-			lock(Locker){
-				connection.InsertAll (groups);
-			}
+
 			var tuple = new Tuple<Type,string> (type, groupInfo.ToString());
 			using(ThreadLock.Lock(groupLocker)) {
 				if (Groups.ContainsKey (tuple))
@@ -167,11 +162,11 @@ namespace Xamarin.Data
 				if (string.IsNullOrEmpty (groupInfo.GroupBy))
 				groups = new List<InstantDatabaseGroup> (){new InstantDatabaseGroup{GroupString = ""}};
 				else {
-					var query = string.Format ("select distinct {1} as GroupString from {0} {3} order by {2}", type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.FilterString(true));
+					var query = string.Format ("select distinct {1} as GroupString from {0} {3} order by {2} {4}", type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.FilterString(true),groupInfo.LimitString());
 					groups = connection.Query<InstantDatabaseGroup> (query).ToList ();
 				}
-				var deleteQuery = string.Format ("delete from InstantDatabaseGroup where ClassName = ? and GroupBy = ? and OrderBy = ? and Filter = ?");
-				int deleted = connection.Execute (deleteQuery, type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.Filter);
+				//var deleteQuery = string.Format ("delete from InstantDatabaseGroup where ClassName = ? and GroupBy = ? and OrderBy = ? and Filter = ?");
+				//int deleted = connection.Execute (deleteQuery, type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.Filter);
 			}
 			for (int i = 0; i < groups.Count(); i++) {
 				var group = groups [i];
@@ -182,9 +177,9 @@ namespace Xamarin.Data
 				group.Order = i;
 				string rowQuery;
 				if (string.IsNullOrEmpty (groupInfo.GroupBy))
-					rowQuery = string.Format ("select count(*) from {0} {1}", type.Name, groupInfo.FilterString (true));
+					rowQuery = string.Format ("select count(*) from {0} {1} {2}", type.Name, groupInfo.FilterString (true),groupInfo.LimitString());
 				else
-					rowQuery = string.Format ("select count(*) from {0} where {1} = ? {2}", type.Name, groupInfo.GroupBy, groupInfo.FilterString (false));
+					rowQuery = string.Format ("select count(*) from {0} where {1} = ? {2} {3}", type.Name, groupInfo.GroupBy, groupInfo.FilterString (false),groupInfo.LimitString());
 				//lock(Locker){
 					group.RowCount = connection.ExecuteScalar<int> (rowQuery, group.GroupString);
 				//}
@@ -349,13 +344,7 @@ namespace Xamarin.Data
 		private void FillGroups (Type t, GroupInfo info)
 		{
 			List<InstantDatabaseGroup> groups;
-			if (info.Ignore) {
 				groups = CreateGroupInfo(t,info);
-			} else {
-				//lock (Locker) {
-					groups = connection.Table<InstantDatabaseGroup> ().Where (x => x.ClassName == t.Name && x.Filter == info.Filter && x.GroupBy == info.GroupBy).OrderBy (x => x.GroupString).ToList ();
-				//}
-			}
 			using(ThreadLock.Lock (groupLocker)) {
 				var tuple = new Tuple<Type,string> (t, info.ToString());
 				if (!Groups.ContainsKey (tuple))
