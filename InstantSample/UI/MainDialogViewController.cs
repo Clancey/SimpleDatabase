@@ -2,6 +2,7 @@ using System;
 using MonoTouch.Dialog;
 using System.Threading;
 using MonoTouch.UIKit;
+using ClanceysLib;
 
 namespace InstantSample
 {
@@ -11,7 +12,7 @@ namespace InstantSample
 		{
 			Root = CreateRoot ();
 		}
-		MBProgressHUD.MBProgressHUD hud;
+		MBProgressHUD hud;
 		RootElement CreateRoot()
 		{
 			return new RootElement ("Instant Database Sample"){
@@ -35,7 +36,7 @@ namespace InstantSample
 		}
 		void insertPeople(int numberOfPeople)
 		{
-			hud = new MBProgressHUD.MBProgressHUD();
+			hud = new MBProgressHUD();
 			hud.Show(true);
 			NameGenerator.GetPeopleAsync(numberOfPeople).ContinueWith(t=>{
 				if(t.Exception == null){

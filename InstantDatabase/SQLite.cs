@@ -2615,7 +2615,7 @@ namespace SQLite
 					
 		public static IntPtr Prepare2 (IntPtr db, string query)
 		{
-			IntPtr stmt;
+			IntPtr stmt = IntPtr.Zero;
 						try{
 							//Console.WriteLine(query);
 			var r = Prepare2 (db, query, query.Length, out stmt, IntPtr.Zero);

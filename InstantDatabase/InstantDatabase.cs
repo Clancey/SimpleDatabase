@@ -225,11 +225,23 @@ namespace Xamarin.Data
 				//GC.Collect ();
 			}
 		}
-		public void ClearMemeoryStore()
+		public void ClearMemoryStore()
 		{
 			using(ThreadLock.Lock (memStoreLocker)) {
 				MemoryStore.Clear ();
 				//GC.Collect ();
+			}
+		}
+		public void ClearMemory<T>(GroupInfo groupInfo)
+		{
+			var t = typeof(T);
+			ClearMemory(t,groupInfo);
+		}
+		public void ClearMemory(Type type, GroupInfo groupInfo)
+		{
+			var tuple = new Tuple<Type,string> (type, groupInfo.ToString());
+			using(ThreadLock.Lock(memStoreLocker)){
+				MemoryStore.Remove (tuple);
 			}
 		}
 
@@ -917,7 +929,7 @@ namespace Xamarin.Data
 		}
 		public T ExecuteScalar<T> (string query, params object[] args) where T : new()
 		{
-			//lock(Locker)
+			lock(Locker)
 				return connection.ExecuteScalar<T>(query,args);
 		}
 

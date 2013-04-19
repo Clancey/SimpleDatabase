@@ -90,8 +90,8 @@
     <Reference Include="System.Core" />
     <Reference Include="monotouch" />
     <Reference Include="MonoTouch.Dialog-1" />
-    <Reference Include="MBProgressHud">
-      <HintPath>..\Addons\mbprogresshud-1.0\lib\ios\MBProgressHud.dll</HintPath>
+    <Reference Include="Xamarin.Tables.iOS">
+      <HintPath>..\Xamarin.Tables.iOS.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -114,16 +114,13 @@
     <Compile Include="Data\SongDatabase.cs" />
     <Compile Include="Model\SongViewModel.cs" />
     <Compile Include="UI\SongViewController.cs" />
+    <Compile Include="MBProgressHUD.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <ProjectReference Include="..\InstantDatabase\InstantDatabase.csproj">
       <Project>{E8B052D6-9C21-4B3F-9520-29D7B38513C5}</Project>
       <Name>InstantDatabase</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Xamarin.Tables\Xamarin.Tables\Xamarin.Tables.iOS.csproj">
-      <Project>{FFDAC76C-FB0C-4B30-B802-59112659A2D9}</Project>
-      <Name>Xamarin.Tables.iOS</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
