@@ -177,12 +177,14 @@ namespace Xamarin.Data
 				group.Order = i;
 				string rowQuery;
 				if (string.IsNullOrEmpty (groupInfo.GroupBy))
-					rowQuery = string.Format ("select count(*) from {0} {1} {2}", type.Name, groupInfo.FilterString (true),groupInfo.LimitString());
+					rowQuery = string.Format ("select count(*) from {0} {1}", type.Name, groupInfo.FilterString (true));
 				else
-					rowQuery = string.Format ("select count(*) from {0} where {1} = ? {2} {3}", type.Name, groupInfo.GroupBy, groupInfo.FilterString (false),groupInfo.LimitString());
+					rowQuery = string.Format ("select count(*) from {0} where {1} = ? {2}", type.Name, groupInfo.GroupBy, groupInfo.FilterString (false));
 				//lock(Locker){
 					group.RowCount = connection.ExecuteScalar<int> (rowQuery, group.GroupString);
 				//}
+				if(groupInfo.Limit > 0)
+					group.RowCount = Math.Min(group.RowCount,groupInfo.Limit);
 			}
 			return groups;
 		}
@@ -489,10 +491,14 @@ namespace Xamarin.Data
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
 			string query =  "Select count(*) from " + t.Name + " " + filterString;
-			
+
+			int count = 0;
 			lock(Locker){
-				return connection.ExecuteScalar<int> (query);
+				count = connection.ExecuteScalar<int> (query);
 			}
+			if(info.Limit > 0)
+				return Math.Min(info.Limit,count);
+			return count;
 		}
 		public int GetDistinctObjectCount<T> (string column)
 		{
@@ -505,11 +511,16 @@ namespace Xamarin.Data
 				info = GetGroupInfo<T> ();
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
-			string query =  string.Format("Select distinct count({0}) from ",column) + t.Name + " " + filterString;
-			
+			string query =  string.Format("Select distinct count({0}) from ",column) + t.Name + " " + filterString + info.LimitString();
+
+			int count = 0;
 			lock(Locker){
-				return connection.ExecuteScalar<int> (query);
+				count = connection.ExecuteScalar<int> (query);
 			}
+			
+			if(info.Limit > 0)
+				return Math.Min(info.Limit,count);
+			return count;
 		}
 
 
@@ -536,7 +547,7 @@ namespace Xamarin.Data
 				info = GetGroupInfo<T> ();
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
-			string query =  "Select * from " + t.Name + " " + filterString;
+			string query =  "Select * from " + t.Name + " " + filterString  + info.LimitString();
 			
 			lock(Locker){
 				return connection.Query<T> (query).ToList();

@@ -54,7 +54,7 @@ namespace Xamarin.Data
 
 		public string LimitString()
 		{
-			return (Limit > 0 ? " Limit " + Limit : "");
+			return (Limit > 0 ? " Limit " + Limit : " ");
 		}
 
 		public override bool Equals (object obj)
