@@ -69,18 +69,17 @@ namespace Xamarin.Data
 		Dictionary<Type,List<object>> Objects = new Dictionary<Type, List<object>> ();
 		Dictionary<Tuple<Type,string>,List<InstantDatabaseGroup>> Groups = new Dictionary<Tuple<Type,string>, List<InstantDatabaseGroup>> ();
 		Dictionary<Type,GroupInfo> GroupInfoDict = new Dictionary<Type, GroupInfo> ();
-		public static object Locker = new object ();
 		object groupLocker = new object ();
 		object memStoreLocker = new object ();
-		SQLiteConnection connection;
-		public InstantDatabase(SQLiteConnection sqliteConnection)
+		SQLiteAsyncConnection connection;
+		public InstantDatabase(SQLiteAsyncConnection sqliteConnection)
 		{
 			connection = sqliteConnection;
 			init ();
 		}
 		public InstantDatabase (string databasePath, bool storeDateTimeAsTicks = false)
 		{
-			connection = new SQLiteConnection (databasePath, true);
+			connection = new SQLiteAsyncConnection (databasePath, true);
 			init ();
 		}
 
@@ -158,16 +157,15 @@ namespace Xamarin.Data
 		private List<InstantDatabaseGroup> CreateGroupInfo(Type type, GroupInfo groupInfo)
 		{
 			List<InstantDatabaseGroup> groups;
-			lock(Locker){
-				if (string.IsNullOrEmpty (groupInfo.GroupBy))
-				groups = new List<InstantDatabaseGroup> (){new InstantDatabaseGroup{GroupString = ""}};
-				else {
-					var query = string.Format ("select distinct {1} as GroupString from {0} {3} order by {2} {4}", type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.FilterString(true),groupInfo.LimitString());
-					groups = connection.Query<InstantDatabaseGroup> (query).ToList ();
-				}
-				//var deleteQuery = string.Format ("delete from InstantDatabaseGroup where ClassName = ? and GroupBy = ? and OrderBy = ? and Filter = ?");
-				//int deleted = connection.Execute (deleteQuery, type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.Filter);
+			if (string.IsNullOrEmpty (groupInfo.GroupBy))
+			groups = new List<InstantDatabaseGroup> (){new InstantDatabaseGroup{GroupString = ""}};
+			else {
+				var query = string.Format ("select distinct {1} as GroupString from {0} {3} order by {2} {4}", type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.FilterString(true),groupInfo.LimitString());
+				groups = connection.Query<InstantDatabaseGroup> (query).ToList ();
 			}
+			//var deleteQuery = string.Format ("delete from InstantDatabaseGroup where ClassName = ? and GroupBy = ? and OrderBy = ? and Filter = ?");
+			//int deleted = connection.Execute (deleteQuery, type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.Filter);
+
 			for (int i = 0; i < groups.Count(); i++) {
 				var group = groups [i];
 				group.ClassName = type.Name;
@@ -407,13 +405,11 @@ namespace Xamarin.Data
 				var pk = GetPrimaryKeyProperty (type);
 				var query = string.Format ("select * from {0} where {1} = ? ", type.Name, pk.Name);
 
-				T item;
-				lock(Locker){
-					item = connection.Query<T> (query, primaryKey).FirstOrDefault ();
-				}
-					if(item != null)
-						AddObjectToDict(item);
-					return item;
+				T item = connection.Query<T> (query, primaryKey).FirstOrDefault ();
+
+				if(item != null)
+					AddObjectToDict(item);
+				return item;
 			
 			}
 			catch(Exception ex)
@@ -436,9 +432,8 @@ namespace Xamarin.Data
 				query = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 1", t.Name, info.GroupBy, info.OrderByString(true), info.FilterString (false));
 			
 			
-			lock(Locker){
-				item = connection.Query<T> (query, group.GroupString, row).FirstOrDefault ();
-			}
+			item = connection.Query<T> (query, group.GroupString, row).FirstOrDefault ();
+
 			if (item == null)
 				return new T ();
 			var tuple = new Tuple<Type,string> (t, info.ToString());
@@ -492,10 +487,8 @@ namespace Xamarin.Data
 			var t = typeof(T);
 			string query =  "Select count(*) from " + t.Name + " " + filterString;
 
-			int count = 0;
-			lock(Locker){
-				count = connection.ExecuteScalar<int> (query);
-			}
+			int count = connection.ExecuteScalar<int> (query);
+
 			if(info.Limit > 0)
 				return Math.Min(info.Limit,count);
 			return count;
@@ -513,10 +506,7 @@ namespace Xamarin.Data
 			var t = typeof(T);
 			string query =  string.Format("Select distinct count({0}) from ",column) + t.Name + " " + filterString + info.LimitString();
 
-			int count = 0;
-			lock(Locker){
-				count = connection.ExecuteScalar<int> (query);
-			}
+			int count = connection.ExecuteScalar<int> (query);
 			
 			if(info.Limit > 0)
 				return Math.Min(info.Limit,count);
@@ -531,11 +521,9 @@ namespace Xamarin.Data
 			var info = GetGroupInfo<T>();
 			info.OrderByString(true);
 			string query = string.Format ("select * from {0} {1} LIMIT {2}, 1", t.Name, info.OrderByString(true), index);
-			
-			
-			lock(Locker){
-				item = connection.Query<T> (query).FirstOrDefault ();
-			}
+
+			item = connection.Query<T> (query).FirstOrDefault ();
+
 			if (item == null)
 				return default(T);
 			AddObjectToDict(item);
@@ -548,10 +536,8 @@ namespace Xamarin.Data
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
 			string query =  "Select * from " + t.Name + " " + filterString  + info.LimitString();
-			
-			lock(Locker){
-				return connection.Query<T> (query).ToList();
-			}
+			return connection.Query<T> (query).ToList();
+
 		}
 
 		public void Precache<T> () where T : new()
@@ -615,10 +601,9 @@ namespace Xamarin.Data
 				
 				if (string.IsNullOrEmpty (group.GroupBy))
 					query = string.Format ("select * from {0} {1} {2} LIMIT {3}, 50", type.Name, group.FilterString (true), group.OrderByString(true), current);
-				
-				lock(Locker){
-					items = connection.Query<T> (query, group.GroupString, current).ToList ();
-				}
+
+				items = connection.Query<T> (query, group.GroupString, current).ToList ();
+
 				{
 					var tuple = new Tuple<Type,string> (type, group.ToString());
 					using(ThreadLock.Lock (memStoreLocker)){
@@ -745,9 +730,8 @@ namespace Xamarin.Data
 
 		public int InsertAll (System.Collections.IEnumerable objects)
 		{
-			lock(Locker){
-				return connection.InsertAll (objects);
-			}
+			return connection.InsertAll (objects);
+
 		}
 		
 		/// <summary>
@@ -764,8 +748,7 @@ namespace Xamarin.Data
 		/// </returns>
 		public int InsertAll (System.Collections.IEnumerable objects, string extra)
 		{
-			lock(Locker)
-				return connection.InsertAll (objects,extra);
+			return connection.InsertAll (objects,extra);
 		}
 		
 		/// <summary>
@@ -782,9 +765,7 @@ namespace Xamarin.Data
 		/// </returns>
 		public int InsertAll (System.Collections.IEnumerable objects, Type objType)
 		{
-			
-			lock(Locker)
-				return connection.InsertAll (objects,objType);
+			return connection.InsertAll (objects,objType);
 		}
 		
 		/// <summary>
@@ -799,8 +780,7 @@ namespace Xamarin.Data
 		/// </returns>
 		public int Insert (object obj)
 		{
-			lock(Locker)
-				return connection.Insert (obj);
+			return connection.Insert (obj);
 		}
 		
 		/// <summary>
@@ -818,8 +798,7 @@ namespace Xamarin.Data
 		/// </returns>
 		public int InsertOrReplace (object obj)
 		{
-			lock(Locker)
-				return connection.InsertOrReplace (obj);
+			return connection.InsertOrReplace (obj);
 		}
 		
 		/// <summary>
@@ -837,8 +816,7 @@ namespace Xamarin.Data
 		/// </returns>
 		public int Insert (object obj, Type objType)
 		{
-			lock(Locker)
-				return connection.Insert (obj,objType);
+			return connection.Insert (obj,objType);
 		}
 		
 		/// <summary>
@@ -859,8 +837,7 @@ namespace Xamarin.Data
 		/// </returns>
 		public int InsertOrReplace (object obj, Type objType)
 		{
-			lock(Locker)
-				return connection.InsertOrReplace (obj,objType);
+			return connection.InsertOrReplace (obj,objType);
 		}
 		
 		/// <summary>
@@ -878,8 +855,7 @@ namespace Xamarin.Data
 		/// </returns>
 		public int Insert (object obj, string extra)
 		{
-			lock(Locker)
-				return connection.Insert (obj,extra);
+			return connection.Insert (obj,extra);
 		}
 		
 		/// <summary>
@@ -900,14 +876,12 @@ namespace Xamarin.Data
 		/// </returns>
 		public int Insert (object obj, string extra, Type objType)
 		{
-			lock(Locker)
-				return connection.Insert (obj,extra,objType);
+			return connection.Insert (obj,extra,objType);
 		}
 
 		public int Execute (string query, params object[] args)
 		{
-			lock(Locker)
-				return connection.Execute (query, args);
+			return connection.Execute (query, args);
 		}
 		public List<T> Query<T> (string query, params object[] args) where T : new()
 		{
@@ -918,30 +892,27 @@ namespace Xamarin.Data
 		
 		public int Delete (object objectToDelete)
 		{
-			lock(Locker)
-				return connection.Delete (objectToDelete);
+			return connection.Delete (objectToDelete);
 		}
 		public int Update (object obj)
 		{
-			lock(Locker)
-				return connection.Update (obj);
+			return connection.Update (obj);
 		}
 
 		
 		public int UpdateAll (System.Collections.IEnumerable objects)
 		{
-			lock (Locker)
-				return connection.UpdateAll (objects);
+			return connection.UpdateAll (objects);
 		}
 		public int CreateTable<T> () where T : new()
 		{
-			lock(Locker)
-				return connection.CreateTable<T> ();
+			var t = connection.CreateTableAsync<T>();
+			t.Wait();
+			return t.Result.Results.Count;
 		}
 		public T ExecuteScalar<T> (string query, params object[] args) where T : new()
 		{
-			lock(Locker)
-				return connection.ExecuteScalar<T>(query,args);
+			return connection.ExecuteScalar<T>(query,args);
 		}
 
 		#endregion

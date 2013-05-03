@@ -112,31 +112,106 @@ namespace SQLite
 		public Task<int> InsertAsync (object item)
 		{
 			return Task.Factory.StartNew (() => {
-				var conn = GetConnection ();
-				using (conn.Lock ()) {
-					return conn.Insert (item);
-				}
+				return Insert (item);
 			});
 		}
 		
+		public int Insert (object item)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.Insert (item);
+			}
+		}
+		
+		public Task<int> InsertAsync (object item,string extra)
+		{
+			return Task.Factory.StartNew (() => {
+				return Insert (item,extra);
+			});
+		}
+		
+		public int Insert (object item,string extra)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.Insert (item,extra);
+			}
+		}
+		
+		public Task<int> InsertAsync (object item, Type type)
+		{
+			return Task.Factory.StartNew (() => {
+				return Insert (item,type);
+			});
+		}
+		
+		public int Insert (object item, Type type)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.Insert (item,type);
+			}
+		}
+		
+		
+		public Task<int> InsertAsync (object item, string extra, Type type)
+		{
+			return Task.Factory.StartNew (() => {
+				return Insert (item,extra,type);
+			});
+		}
+		
+		public int Insert (object item, string extra, Type type)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.Insert (item,extra,type);
+			}
+		}
+
 		public Task<int> UpdateAsync (object item)
 		{
 			return Task.Factory.StartNew (() => {
-				var conn = GetConnection ();
-				using (conn.Lock ()) {
-					return conn.Update (item);
-				}
+				return Update (item);
 			});
+		}
+		
+		public int Update (object item)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.Update (item);
+			}
+		}
+
+		public Task<int> UpdateAllAsync (IEnumerable items)
+		{
+			return Task.Factory.StartNew (() => {
+				return UpdateAll (items);
+			});
+		}
+		
+		public int UpdateAll (IEnumerable items)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.UpdateAll (items);
+			}
 		}
 		
 		public Task<int> DeleteAsync (object item)
 		{
 			return Task.Factory.StartNew (() => {
-				var conn = GetConnection ();
-				using (conn.Lock ()) {
-					return conn.Delete (item);
-				}
+				return Delete (item);
 			});
+		}
+		public int Delete (object item)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.Delete (item);
+			}
 		}
 		
 		public Task<T> GetAsync<T> (object pk)
@@ -188,50 +263,92 @@ namespace SQLite
 		public Task<int> ExecuteAsync (string query, params object[] args)
 		{
 			return Task<int>.Factory.StartNew (() => {
-				var conn = GetConnection ();
-				using (conn.Lock ()) {
-					return conn.Execute (query, args);
-				}
+				return Execute (query, args);
 			});
+		}
+		
+		
+		public int Execute (string query, params object[] args)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.Execute (query, args);
+			}
 		}
 		
 		public Task<int> InsertAllAsync (IEnumerable items)
 		{
 			return Task.Factory.StartNew (() => {
-				var conn = GetConnection ();
-				using (conn.Lock ()) {
-					return conn.InsertAll (items);
-				}
+				return InsertAll (items);
 			});
+		}
+		
+		public int InsertAll (IEnumerable items)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.InsertAll (items);
+			}
 		}
 		public Task<int> InsertAllAsync (IEnumerable items, string extra)
 		{
 			return Task.Factory.StartNew (() => {
-				var conn = GetConnection ();
-				using (conn.Lock ()) {
-					return conn.InsertAll (items,extra);
-				}
+				return InsertAll (items,extra);
 			});
 		}
-		
-		[Obsolete("Will cause a deadlock if any call in action ends up in a different thread. Use RunInTransactionAsync(Action<SQLiteConnection>) instead.")]
-		public Task RunInTransactionAsync (Action<SQLiteAsyncConnection> action)
+		public int InsertAll (IEnumerable items, string extra)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.InsertAll (items,extra);
+			}
+		}
+		public Task<int> InsertAllAsync (IEnumerable items, Type type)
 		{
 			return Task.Factory.StartNew (() => {
-				var conn = this.GetConnection ();
-				using (conn.Lock ()) {
-					conn.BeginTransaction ();
-					try {
-						action (this);
-						conn.Commit ();
-					} catch (Exception) {
-						conn.Rollback ();
-						throw;
-					}
-				}
+				return InsertAll (items,type);
+			});
+		}
+		public int InsertAll (IEnumerable items, Type type)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.InsertAll (items,type);
+			}
+		}
+		
+		public Task<int> InsertOrReplaceAsync (object item)
+		{
+			return Task.Factory.StartNew (() => {
+				return InsertOrReplace (item);
 			});
 		}
 		
+		public int InsertOrReplace (object item)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.InsertOrReplace (item);
+			}
+		}
+
+		
+		
+		public Task<int> InsertOrReplaceAsync (object item, Type type)
+		{
+			return Task.Factory.StartNew (() => {
+				return InsertOrReplace (item,type);
+			});
+		}
+		
+		public int InsertOrReplace (object item, Type type)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.InsertOrReplace (item,type);
+			}
+		}
+
 		public Task RunInTransactionAsync (Action<SQLiteConnection> action)
 		{
 			return Task.Factory.StartNew (() =>
@@ -264,23 +381,33 @@ namespace SQLite
 		public Task<T> ExecuteScalarAsync<T> (string sql, params object[] args)
 		{
 			return Task<T>.Factory.StartNew (() => {
-				var conn = GetConnection ();
-				using (conn.Lock ()) {
-					var command = conn.CreateCommand (sql, args);
-					return command.ExecuteScalar<T> ();
-				}
+				return ExecuteScalar<T> (sql,args);
 			});
+		}
+
+		public T ExecuteScalar<T> (string sql, params object[] args)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				var command = conn.CreateCommand (sql, args);
+				return command.ExecuteScalar<T> ();
+			}
 		}
 		
 		public Task<List<T>> QueryAsync<T> (string sql, params object[] args)
 			where T : new ()
 		{
 			return Task<List<T>>.Factory.StartNew (() => {
+					return Query<T> (sql, args);
+			});
+		}
+		public List<T> Query<T> (string sql, params object[] args)
+			where T : new ()
+		{
 				var conn = GetConnection ();
 				using (conn.Lock ()) {
 					return conn.Query<T> (sql, args);
 				}
-			});
 		}
 	}
 	
