@@ -750,6 +750,16 @@ namespace Xamarin.Data
 		{
 			return connection.InsertAll (objects,extra);
 		}
+
+		public Task<int> InsertAllAsync (System.Collections.IEnumerable objects)
+		{
+			return connection.InsertAllAsync (objects);
+		}
+
+		public Task<int> InsertAllAsync (System.Collections.IEnumerable objects, string extra)
+		{
+			return connection.InsertAllAsync (objects,extra);
+		}
 		
 		/// <summary>
 		/// Inserts all specified objects.
