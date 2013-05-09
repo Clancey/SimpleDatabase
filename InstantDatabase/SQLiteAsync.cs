@@ -506,7 +506,7 @@ namespace SQLite
 		}
 	}
 	
-	class SQLiteConnectionPool
+	public class SQLiteConnectionPool
 	{
 		class Entry
 		{
@@ -550,7 +550,7 @@ namespace SQLite
 					entry = new Entry (connectionString);
 					_entries [key] = entry;
 				}
-				Console.WriteLine("Entries count {0}", _entries.Count);
+				//Console.WriteLine("Entries count {0}", _entries.Count);
 				
 				return entry.Connection;
 			}
