@@ -66,7 +66,7 @@ namespace Xamarin.Data
 	{
 		Dictionary<Tuple<Type,string>,Dictionary<int,Dictionary<int,Object>>> MemoryStore = new Dictionary<Tuple<Type,string>, Dictionary<int, Dictionary<int, object>>> ();
 		Dictionary<Type,Dictionary<object,object>> ObjectsDict = new Dictionary<Type, Dictionary<object, object>> ();
-		Dictionary<Type,List<object>> Objects = new Dictionary<Type, List<object>> ();
+		//Dictionary<Type,List<object>> Objects = new Dictionary<Type, List<object>> ();
 		Dictionary<Tuple<Type,string>,List<InstantDatabaseGroup>> Groups = new Dictionary<Tuple<Type,string>, List<InstantDatabaseGroup>> ();
 		Dictionary<Type,GroupInfo> GroupInfoDict = new Dictionary<Type, GroupInfo> ();
 		object groupLocker = new object ();
@@ -129,13 +129,19 @@ namespace Xamarin.Data
 		{
 			if (GroupInfoDict.ContainsKey (type))
 				return GroupInfoDict [type];
-			var groupBy = GetGroupByProperty (type);
-			var orderBy = GetOrderByProperty (type);
+			bool groupDesc = false;
+			var groupBy = GetGroupByProperty (type,out groupDesc);
+			bool desc = false;
+			var orderBy = GetOrderByProperty (type,out desc);
 			var groupInfo = new GroupInfo ();
-			if (groupBy != null)
+			if (groupBy != null){
 				groupInfo.GroupBy = groupBy.Name;
-			if (orderBy != null)
-				groupInfo.OrderBy = orderBy.Name;
+				groupInfo.GroupOrderByDesc = groupDesc;
+			}
+			if (orderBy != null){
+				groupInfo.OrderBy = orderBy.Name;				
+				groupInfo.OrderByDesc = desc;
+			}
 			GroupInfoDict.Add (type, groupInfo);
 			return groupInfo;
 		}
@@ -160,7 +166,7 @@ namespace Xamarin.Data
 			if (string.IsNullOrEmpty (groupInfo.GroupBy))
 			groups = new List<InstantDatabaseGroup> (){new InstantDatabaseGroup{GroupString = ""}};
 			else {
-				var query = string.Format ("select distinct {1} as GroupString from {0} {3} order by {2} {4}", type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.FilterString(true),groupInfo.LimitString());
+				var query = string.Format ("select distinct {1} as GroupString from {0} {3} {2} {4}", type.Name, groupInfo.GroupBy, groupInfo.OrderByString(true), groupInfo.FilterString(true),groupInfo.LimitString());
 				groups = connection.Query<InstantDatabaseGroup> (query).ToList ();
 			}
 			//var deleteQuery = string.Format ("delete from InstantDatabaseGroup where ClassName = ? and GroupBy = ? and OrderBy = ? and Filter = ?");
@@ -219,9 +225,10 @@ namespace Xamarin.Data
 		public void ClearMemory ()
 		{
 			using(ThreadLock.Lock (memStoreLocker)) {
-				MemoryStore.Clear ();
+
 				ObjectsDict.Clear ();
-				Objects.Clear ();
+				ClearMemoryStore ();
+				//Objects.Clear ();
 				//GC.Collect ();
 			}
 		}
@@ -229,8 +236,16 @@ namespace Xamarin.Data
 		{
 			using(ThreadLock.Lock (memStoreLocker)) {
 				MemoryStore.Clear ();
-				//GC.Collect ();
+				using(ThreadLock.Lock (groupLocker)){
+					Groups.Clear ();
+					GroupInfoDict.Clear ();
+				}
 			}
+		}
+		public void ClearMemory<T>()
+		{
+			var t = typeof(T);
+			ClearMemory(t,GetGroupInfo<T>());
 		}
 		public void ClearMemory<T>(GroupInfo groupInfo)
 		{
@@ -243,6 +258,7 @@ namespace Xamarin.Data
 			using(ThreadLock.Lock(memStoreLocker)){
 				MemoryStore.Remove (tuple);
 			}
+			Groups.Clear ();
 		}
 
 		public string SectionHeader<T> (int section)
@@ -401,7 +417,7 @@ namespace Xamarin.Data
 					ObjectsDict.Add (type, new Dictionary<object, object> ());
 				if (ObjectsDict [type].ContainsKey (primaryKey)) 
 					return (T)ObjectsDict [type] [primaryKey];
-				Console.WriteLine("object not in objectsdict");
+				//Console.WriteLine("object not in objectsdict");
 				var pk = GetPrimaryKeyProperty (type);
 				var query = string.Format ("select * from {0} where {1} = ? ", type.Name, pk.Name);
 
@@ -421,6 +437,7 @@ namespace Xamarin.Data
 
 		private T getObject<T> (GroupInfo info, int section, int row) where T : new()
 		{
+			try{
 			T item;
 			var t = typeof(T);
 			var group = GetGroup<T> (info, section);
@@ -450,10 +467,16 @@ namespace Xamarin.Data
 				AddObjectToDict (item);
 				return item;
 			}
+			}
+			catch(Exception ex)
+			{
+				Console.WriteLine (ex);
+				return default(T);
+			}
 
 		}
 
-		private void AddObjectToDict (object item)
+		public void AddObjectToDict (object item)
 		{
 			using(ThreadLock.Lock (groupLocker)) {
 				var t = item.GetType ();
@@ -467,10 +490,10 @@ namespace Xamarin.Data
 					ObjectsDict [t] [pk] = item;
 				else
 					ObjectsDict [t].Add (pk, item);
-				if (!Objects.ContainsKey (t))
-					Objects.Add (t, new List<object> ());
-				if (!Objects [t].Contains (item))
-					Objects [t].Add (item);
+//				if (!Objects.ContainsKey (t))
+//					Objects.Add (t, new List<object> ());
+//				if (!Objects [t].Contains (item))
+//					Objects [t].Add (item);
 			}
 		}
 
@@ -694,25 +717,32 @@ namespace Xamarin.Data
 		}
 
 
-		private PropertyInfo GetGroupByProperty (Type type)
+		static internal PropertyInfo GetGroupByProperty (Type type, out bool desc)
 		{
 			foreach (var prop in type.GetProperties()) {
 				var attribtues = prop.GetCustomAttributes (false);
 				var visibleAtt = attribtues.Where (x => x is GroupByAttribute).FirstOrDefault () as GroupByAttribute;
-				if (visibleAtt != null)
+				if (visibleAtt != null){
+					desc = visibleAtt.Descending;
 					return prop;
+				}
 			}
+			desc = false;
 			return null;
 		}
 
-		private PropertyInfo GetOrderByProperty (Type type)
+		internal static PropertyInfo GetOrderByProperty (Type type, out bool desc)
 		{
 			foreach (var prop in type.GetProperties()) {
 				var attribtues = prop.GetCustomAttributes (false);
 				var visibleAtt = attribtues.Where (x => x is OrderByAttribute).FirstOrDefault () as OrderByAttribute;
 				if (visibleAtt != null)
+				{
+					desc = visibleAtt.Descending;
 					return prop;
+				}
 			}
+			desc = false;
 			return null;
 		}
 
@@ -932,13 +962,22 @@ namespace Xamarin.Data
 	[AttributeUsage (AttributeTargets.Property)]
 	public class GroupByAttribute : Attribute
 	{
-
+		
+		public bool Descending {get;set;}
+		public GroupByAttribute(bool descending = false)
+		{
+			Descending = descending;
+		}
 	}
 	
 	[AttributeUsage (AttributeTargets.Property)]
 	public class OrderByAttribute : Attribute
 	{
-
+		public bool Descending {get;set;}
+		public OrderByAttribute(bool descending = false)
+		{
+			Descending = descending;
+		}
 	}
 }
 

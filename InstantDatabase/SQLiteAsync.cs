@@ -86,16 +86,21 @@ namespace SQLite
 		public Task<CreateTablesResult> CreateTablesAsync (params Type[] types)
 		{
 			return Task.Factory.StartNew (() => {
-				CreateTablesResult result = new CreateTablesResult ();
-				var conn = GetConnection ();
-				using (conn.Lock ()) {
-					foreach (Type type in types) {
-						int aResult = conn.CreateTable (type);
-						result.Results [type] = aResult;
-					}
-				}
-				return result;
+				return CreateTables(types);
 			});
+		}
+
+		public CreateTablesResult CreateTables(params Type[] types)
+		{
+			CreateTablesResult result = new CreateTablesResult ();
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				foreach (Type type in types) {
+					int aResult = conn.CreateTable (type);
+					result.Results [type] = aResult;
+				}
+			}
+			return result;
 		}
 		
 		public Task<int> DropTableAsync<T> ()
