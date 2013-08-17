@@ -276,7 +276,13 @@ namespace Xamarin.Data
 				var tuple = new Tuple<Type,string> (t, info.ToString());
 				if (!Groups.ContainsKey (tuple) || Groups [tuple].Count<= section)
 					FillGroups (t, info);
+				try{
 				return Groups [tuple] [section].GroupString;
+				}
+				catch(Exception ex)
+				{
+					return "";
+				}
 			}
 		}
 		
@@ -350,7 +356,7 @@ namespace Xamarin.Data
 				var tuple = new Tuple<Type,string> (t, info.ToString());
 				List<InstantDatabaseGroup> group = null;
 				int count = 0;
-				while(group == null || group.Count <= section || count > 5)
+				while((group == null || group.Count <= section) && count < 5)
 				{
 					if(count > 0)
 						Console.WriteLine("Trying to fill groups: {0}",count);
@@ -359,12 +365,13 @@ namespace Xamarin.Data
 					}
 					if(group == null)
 					{
-						count ++;
 						FillGroups (t, info);
 					}
+				
+					count ++;
 				}
-				if(group == null)
-					return null;
+			if(group == null || group.Count == 0)
+					return new InstantDatabaseGroup();
 				return group [section];
 
 		}
