@@ -797,6 +797,22 @@ namespace Xamarin.Data
 		{
 			return connection.InsertAllAsync (objects,extra);
 		}
+
+		public AsyncTableQuery<T> TablesAsync<T> ()
+			where T : new ()
+		{
+			return connection.TableAsync<T> ();
+		}
+
+		public Task<int> InsertAsync(object item)
+		{
+			return connection.InsertAsync (item);
+		}
+		public Task<int> InsertAsync(object item,string extra)
+		{
+			return connection.InsertAsync (item,extra);
+		}
+	
 		
 		/// <summary>
 		/// Inserts all specified objects.
@@ -947,6 +963,11 @@ namespace Xamarin.Data
 		}
 
 		
+		public Task<int> UpdateAsync (object obj)
+		{
+			return connection.UpdateAsync (obj);
+		}
+
 		public int UpdateAll (System.Collections.IEnumerable objects)
 		{
 			return connection.UpdateAll (objects);
