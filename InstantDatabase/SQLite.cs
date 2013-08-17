@@ -132,16 +132,27 @@ namespace SQLite
 		/// only here for backwards compatibility. There is a *significant* speed advantage, with no
 		/// down sides, when setting storeDateTimeAsTicks = true.
 		/// </param>
-		public SQLiteConnection (string databasePath, SQLiteOpenFlags openFlags, bool storeDateTimeAsTicks = false)
+		SQLiteOpenFlags openFlags;
+		bool storeDateTimeAsTicks = true;
+
+		public SQLiteConnection (string databasePath, SQLiteOpenFlags openFlags, bool storeDateTimeAsTicks = true)
 		{
+			this.openFlags = openFlags;
+			this.storeDateTimeAsTicks = storeDateTimeAsTicks;
 			DatabasePath = databasePath;
 			
 			#if NETFX_CORE
 			SQLite3.SetDirectory(/*temp directory type*/2, Windows.Storage.ApplicationData.Current.TemporaryFolder.Path);
 			#endif
-			
+
+
+			Open();
+		}
+
+		public void Open()
+		{
 			Sqlite3DatabaseHandle handle;
-			
+
 			#if SILVERLIGHT
 			var r = SQLite3.Open (databasePath, out handle, (int)openFlags, IntPtr.Zero);
 			#else
@@ -151,15 +162,15 @@ namespace SQLite
 			var databasePathAsBytes = GetNullTerminatedUtf8 (DatabasePath);
 			var r = SQLite3.Open (databasePathAsBytes, out handle, (int)openFlags, IntPtr.Zero);
 			#endif
-			
+
 			Handle = handle;
 			if (r != SQLite3.Result.OK) {
 				throw SQLiteException.New (r, String.Format ("Could not open database file: {0} ({1})", DatabasePath, r));
 			}
 			_open = true;
-			
+
 			StoreDateTimeAsTicks = storeDateTimeAsTicks;
-			
+
 			BusyTimeout = TimeSpan.FromSeconds (0.1);
 		}
 		
@@ -435,15 +446,17 @@ namespace SQLite
 		public SQLiteCommand CreateCommand (string cmdText, params object[] ps)
 		{
 			if (!_open) {
-				throw SQLiteException.New (SQLite3.Result.Error, "Cannot create commands from unopened database");
-			} else {
+				Open ();
+				if (!_open)
+					throw new Exception ("Database not opened");
+			} 
 				var cmd = NewCommand ();
 				cmd.CommandText = cmdText;
 				foreach (var o in ps) {
 					cmd.Bind (o);
 				}
 				return cmd;
-			}
+
 		}
 		
 		/// <summary>

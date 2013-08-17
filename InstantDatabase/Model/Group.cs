@@ -17,7 +17,9 @@ namespace Xamarin.Data
 	{
 		[Indexed]
 		public string GroupBy {get;set;}
+		public bool OrderByDesc { get; set;}
 		public string GroupString {get;set;}
+		public bool GroupOrderByDesc { get; set;}
 		[Indexed]
 		public string OrderBy { get; set; }
 		[Indexed]
@@ -36,10 +38,11 @@ namespace Xamarin.Data
 
 		public string OrderByString(bool includeOrerBy = true)
 		{
+			
 			if (string.IsNullOrEmpty (OrderBy))
 				return "";
 			string orderby = includeOrerBy ? " order by " : " , ";
-			orderby += OrderBy;
+			orderby += (string.IsNullOrEmpty(GroupBy) ? "" : GroupBy + (GroupOrderByDesc ? " desc " : "") + " , ") + OrderBy + ( OrderByDesc ? " desc " : "");
 			return orderby;
 		}
 
