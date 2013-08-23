@@ -946,6 +946,12 @@ namespace Xamarin.Data
 		{
 			return connection.Execute (query, args);
 		}
+
+		public Task<int> ExecuteAsync(string query, params object[] args)
+		{
+			return connection.ExecuteAsync(query, args);
+		}
+
 		public List<T> Query<T> (string query, params object[] args) where T : new()
 		{
 			//lock(Locker)
