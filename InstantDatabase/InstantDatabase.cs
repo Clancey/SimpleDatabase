@@ -544,13 +544,14 @@ namespace Xamarin.Data
 		}
 
 
-		public T GetObjectByIndex<T> (int index) where T  : new()
+		public T GetObjectByIndex<T> (int index, GroupInfo info = null) where T  : new()
 		{
 			T item;
 			var t = typeof(T);
-			var info = GetGroupInfo<T>();
-			info.OrderByString(true);
-			string query = string.Format ("select * from {0} {1} LIMIT {2}, 1", t.Name, info.OrderByString(true), index);
+			if (info == null)
+				info = GetGroupInfo<T>();
+			var filterString = info.FilterString (true);
+			string query = string.Format("select * from {0} {1} {2} LIMIT {3}, 1", t.Name, filterString, info.OrderByString(true), index);
 
 			item = connection.Query<T> (query).FirstOrDefault ();
 
