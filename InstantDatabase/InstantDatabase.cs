@@ -437,6 +437,7 @@ namespace Xamarin.Data
 			}
 			catch(Exception ex)
 			{
+				Console.WriteLine(ex);
 				return default(T);
 			}
 
@@ -482,26 +483,29 @@ namespace Xamarin.Data
 			}
 
 		}
-
+		public void AddObjectToDict(object item, Type t)
+		{
+			using (ThreadLock.Lock(groupLocker))
+			{
+				var primaryKey = GetPrimaryKeyProperty(t);
+				if (primaryKey == null)
+					return;
+				object pk = primaryKey.GetValue(item, null);
+				if (!ObjectsDict.ContainsKey(t))
+					ObjectsDict.Add(t, new Dictionary<object, object>());
+				if (ObjectsDict[t].ContainsKey(pk))
+					ObjectsDict[t][pk] = item;
+				else
+					ObjectsDict[t].Add(pk, item);
+				//				if (!Objects.ContainsKey (t))
+				//					Objects.Add (t, new List<object> ());
+				//				if (!Objects [t].Contains (item))
+				//					Objects [t].Add (item);
+			}
+		}
 		public void AddObjectToDict (object item)
 		{
-			using(ThreadLock.Lock (groupLocker)) {
-				var t = item.GetType ();
-				var primaryKey = GetPrimaryKeyProperty (t);
-				if(primaryKey == null)
-					return;
-				object pk = primaryKey.GetValue (item, null);
-				if (!ObjectsDict.ContainsKey (t))
-					ObjectsDict.Add (t, new Dictionary<object, object> ());
-				if (ObjectsDict [t].ContainsKey (pk))
-					ObjectsDict [t] [pk] = item;
-				else
-					ObjectsDict [t].Add (pk, item);
-//				if (!Objects.ContainsKey (t))
-//					Objects.Add (t, new List<object> ());
-//				if (!Objects [t].Contains (item))
-//					Objects [t].Add (item);
-			}
+			AddObjectToDict(item, item.GetType());
 		}
 
 		public int GetObjectCount<T> ()
