@@ -337,6 +337,26 @@ namespace SQLite
 			}
 		}
 
+
+		public int InsertOrReplaceAll(IEnumerable items)
+		{
+			var conn = GetConnection();
+			using (conn.Lock())
+			{
+				return conn.InsertOrReplaceAll(items);
+			}
+		}
+
+
+		public int InsertOrReplaceAll(IEnumerable items, Type objType)
+		{
+			var conn = GetConnection();
+			using (conn.Lock())
+			{
+				return conn.InsertOrReplaceAll(items,objType);
+			}
+		}
+
 		
 		
 		public Task<int> InsertOrReplaceAsync (object item, Type type)

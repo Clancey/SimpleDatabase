@@ -989,6 +989,30 @@ namespace SQLite
 			});
 			return c;
 		}
+		public int InsertOrReplaceAll(System.Collections.IEnumerable objects, Type objType)
+		{
+			var c = 0;
+			RunInTransaction(() =>
+			{
+				foreach (var r in objects)
+				{
+					c += InsertOrReplace(r, objType);
+				}
+			});
+			return c;
+		}
+		public int InsertOrReplaceAll(System.Collections.IEnumerable objects)
+		{
+			var c = 0;
+			RunInTransaction(() =>
+			{
+				foreach (var r in objects)
+				{
+					c += InsertOrReplace(r);
+				}
+			});
+			return c;
+		}
 		
 		/// <summary>
 		/// Inserts the given object and retrieves its

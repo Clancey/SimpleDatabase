@@ -836,6 +836,7 @@ namespace Xamarin.Data
 			return connection.InsertAll (objects,objType);
 		}
 		
+		
 		/// <summary>
 		/// Inserts the given object and retrieves its
 		/// auto incremented primary key if it has one.
@@ -907,7 +908,30 @@ namespace Xamarin.Data
 		{
 			return connection.InsertOrReplace (obj,objType);
 		}
-		
+
+		public int InsertOrReplaceAll(System.Collections.IEnumerable objects)
+		{
+			return connection.InsertAll(objects);
+
+		}
+
+		/// <summary>
+		/// Inserts all specified objects.
+		/// </summary>
+		/// <param name="objects">
+		/// An <see cref="IEnumerable"/> of the objects to insert.
+		/// </param>
+		/// <param name="extra">
+		/// Literal SQL code that gets placed into the command. INSERT {extra} INTO ...
+		/// </param>
+		/// <returns>
+		/// The number of rows added to the table.
+		/// </returns>
+		public int InsertOrReplaceAll(System.Collections.IEnumerable objects, Type objType)
+		{
+			return connection.InsertAll(objects, objType);
+		}
+
 		/// <summary>
 		/// Inserts the given object and retrieves its
 		/// auto incremented primary key if it has one.
