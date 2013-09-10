@@ -911,7 +911,7 @@ namespace Xamarin.Data
 
 		public int InsertOrReplaceAll(System.Collections.IEnumerable objects)
 		{
-			return connection.InsertAll(objects);
+			return connection.InsertOrReplaceAll(objects);
 
 		}
 
@@ -929,7 +929,7 @@ namespace Xamarin.Data
 		/// </returns>
 		public int InsertOrReplaceAll(System.Collections.IEnumerable objects, Type objType)
 		{
-			return connection.InsertAll(objects, objType);
+			return connection.InsertOrReplaceAll(objects, objType);
 		}
 
 		/// <summary>
