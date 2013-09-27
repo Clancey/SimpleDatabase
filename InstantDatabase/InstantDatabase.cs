@@ -166,7 +166,7 @@ namespace Xamarin.Data
 			if (string.IsNullOrEmpty (groupInfo.GroupBy))
 			groups = new List<InstantDatabaseGroup> (){new InstantDatabaseGroup{GroupString = ""}};
 			else {
-				var query = string.Format ("select distinct {1} as GroupString from {0} {3} {2} {4}", type.Name, groupInfo.GroupBy, groupInfo.OrderByString(true), groupInfo.FilterString(true),groupInfo.LimitString());
+				var query = string.Format ("select distinct {1} as GroupString from {0} {3} {2} {4}", groupInfo.FromString(type.Name), groupInfo.GroupBy, groupInfo.OrderByString(true), groupInfo.FilterString(true),groupInfo.LimitString());
 				groups = connection.Query<InstantDatabaseGroup> (query).ToList ();
 			}
 			//var deleteQuery = string.Format ("delete from InstantDatabaseGroup where ClassName = ? and GroupBy = ? and OrderBy = ? and Filter = ?");
@@ -181,9 +181,9 @@ namespace Xamarin.Data
 				group.Order = i;
 				string rowQuery;
 				if (string.IsNullOrEmpty (groupInfo.GroupBy))
-					rowQuery = string.Format ("select count(*) from {0} {1}", type.Name, groupInfo.FilterString (true));
+					rowQuery = string.Format ("select count(*) from {0} {1}", groupInfo.FromString(type.Name), groupInfo.FilterString (true));
 				else
-					rowQuery = string.Format ("select count(*) from {0} where {1} = ? {2}", type.Name, groupInfo.GroupBy, groupInfo.FilterString (false));
+					rowQuery = string.Format ("select count(*) from {0} where {1} = ? {2}", groupInfo.FromString(type.Name), groupInfo.GroupBy, groupInfo.FilterString (false));
 				//lock(Locker){
 					group.RowCount = connection.ExecuteScalar<int> (rowQuery, group.GroupString);
 				//}
@@ -452,9 +452,9 @@ namespace Xamarin.Data
 
 			string query;
 			if (string.IsNullOrEmpty (info.GroupBy))
-				query = string.Format ("select * from {0} {1} {2} LIMIT {3}, 1", t.Name, info.FilterString (true), info.OrderByString(true), row);
+					query = string.Format ("select * from {0} {1} {2} LIMIT {3}, 1", info.FromString(t.Name), info.FilterString (true), info.OrderByString(true), row);
 			else
-				query = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 1", t.Name, info.GroupBy, info.OrderByString(true), info.FilterString (false));
+					query = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 1", info.FromString(t.Name), info.GroupBy, info.OrderByString(true), info.FilterString (false));
 			
 			
 			item = connection.Query<T> (query, group.GroupString, row).FirstOrDefault ();
@@ -519,7 +519,7 @@ namespace Xamarin.Data
 				info = GetGroupInfo<T> ();
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
-			string query =  "Select count(*) from " + t.Name + " " + filterString;
+			string query =  "Select count(*) from " + info.FromString(t.Name) + " " + filterString;
 
 			int count = connection.ExecuteScalar<int> (query);
 
@@ -538,7 +538,7 @@ namespace Xamarin.Data
 				info = GetGroupInfo<T> ();
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
-			string query =  string.Format("Select distinct count({0}) from ",column) + t.Name + " " + filterString + info.LimitString();
+			string query =  string.Format("Select distinct count({0}) from ",column) + info.FromString(t.Name) + " " + filterString + info.LimitString();
 
 			int count = connection.ExecuteScalar<int> (query);
 			
@@ -555,7 +555,7 @@ namespace Xamarin.Data
 			if (info == null)
 				info = GetGroupInfo<T>();
 			var filterString = info.FilterString (true);
-			string query = string.Format("select * from {0} {1} {2} LIMIT {3}, 1", t.Name, filterString, info.OrderByString(true), index);
+			string query = string.Format("select * from {0} {1} {2} LIMIT {3}, 1", info.FromString(t.Name), filterString, info.OrderByString(true), index);
 
 			item = connection.Query<T> (query).FirstOrDefault ();
 
@@ -570,7 +570,7 @@ namespace Xamarin.Data
 				info = GetGroupInfo<T> ();
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
-			string query =  "Select * from " + t.Name + " " + filterString  + info.LimitString();
+			string query =  "Select * from " + info.FromString(t.Name) + " " + filterString  + info.LimitString();
 			return connection.Query<T> (query).ToList();
 
 		}
@@ -628,40 +628,34 @@ namespace Xamarin.Data
 				return;
 			Console.WriteLine ("Loading items for group");
 			var type = typeof(T);
-			string query  = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 50", type.Name, group.GroupBy, group.OrderByString(true), group.FilterString (false));
+			string query  = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 50", group.FromString(type.Name), group.GroupBy, group.OrderByString(true), group.FilterString (false));
 			List<T> items;
 			int current = 0;
 			bool hasMore = true;
 			while (hasMore) {
 				
 				if (string.IsNullOrEmpty (group.GroupBy))
-					query = string.Format ("select * from {0} {1} {2} LIMIT {3}, 50", type.Name, group.FilterString (true), group.OrderByString(true), current);
+					query = string.Format ("select * from {0} {1} {2} LIMIT {3}, 50", group.FromString(type.Name), group.FilterString (true), group.OrderByString(true), current);
 
 				items = connection.Query<T> (query, group.GroupString, current).ToList ();
 
 				{
-					var tuple = new Tuple<Type,string> (type, group.ToString());
+					Dictionary<int,object> memoryGroup;
 					using(ThreadLock.Lock (memStoreLocker)){
+					var tuple = new Tuple<Type,string> (type, group.ToString());
 					if (!MemoryStore.ContainsKey (tuple)) {
 						MemoryStore.Add (tuple, new Dictionary<int, Dictionary<int, object>> ());
 						}
-					}
-					using(ThreadLock.Lock (memStoreLocker)){
+
 					if (!MemoryStore [tuple].ContainsKey (group.Order))
 							try{
 						MemoryStore [tuple].Add (group.Order, new Dictionary<int, object> ());
 						}
 						catch(Exception ex)
 						{
-
+								Console.WriteLine (ex);
 						}
-
-					}
-
-
-					Dictionary<int,object> memoryGroup;
-					using(ThreadLock.Lock (memStoreLocker)){
-						memoryGroup = MemoryStore [tuple] [group.Order];
+					memoryGroup = MemoryStore [tuple] [group.Order];
 					}
 					for (int i = 0; i< items.Count; i++) {
 						lock (groupLocker)

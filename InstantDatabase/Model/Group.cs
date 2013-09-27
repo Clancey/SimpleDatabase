@@ -24,6 +24,9 @@ namespace Xamarin.Data
 		public string OrderBy { get; set; }
 		[Indexed]
 		public string Filter { get; set;}
+
+		public string From { get; set;}
+
 		public int Limit {get;set;}
 
 		public GroupInfo Clone ()
@@ -34,6 +37,11 @@ namespace Xamarin.Data
 				OrderBy = this.OrderBy,
 				Filter = this.Filter,
 			};
+		}
+
+		public string FromString(string table)
+		{
+			return string.Format (" {0} {1} ", table, From);
 		}
 
 		public string OrderByString(bool includeOrerBy = true)
