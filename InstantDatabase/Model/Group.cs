@@ -33,9 +33,13 @@ namespace Xamarin.Data
 		{
 			return new GroupInfo{
 				GroupBy = this.GroupBy,
+				OrderByDesc = this.OrderByDesc,
 				GroupString = this.GroupString,
+				GroupOrderByDesc = this.GroupOrderByDesc,
 				OrderBy = this.OrderBy,
 				Filter = this.Filter,
+				From = this.From,
+				Limit = this.Limit,
 			};
 		}
 
