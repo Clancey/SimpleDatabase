@@ -611,7 +611,7 @@ namespace Xamarin.Data
 
 		public void Precache<T> (GroupInfo info, int section) where T : new()
 		{
-			//return;
+			return;
 			if (info == null)
 				info = GetGroupInfo<T> ();
 			var type = typeof(T);
@@ -712,6 +712,7 @@ namespace Xamarin.Data
 				}
 				catch(Exception ex)
 				{
+					Console.WriteLine (ex);
 					runQueue();
 					return;
 				}
