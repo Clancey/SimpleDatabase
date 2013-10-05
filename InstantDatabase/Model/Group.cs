@@ -109,7 +109,7 @@ namespace Xamarin.Data
 		}
 		public override string ToString ()
 		{
-			return string.Format ("[GroupInfo: GroupBy={0}, OrderBy={1}, Filter={2}]", GroupBy, OrderBy, Filter);
+			return string.Format ("[GroupInfo: GroupBy={0}, OrderBy={1}, Filter={2}, From={3}]", GroupBy, OrderBy, Filter,From);
 		}
 
 	}
