@@ -611,71 +611,81 @@ namespace Xamarin.Data
 
 		public void Precache<T> (GroupInfo info, int section) where T : new()
 		{
-			return;
-			if (info == null)
-				info = GetGroupInfo<T> ();
-			var type = typeof(T);
-			var group = GetGroup (type, info, section);
-			cacheQueue.AddFirst (delegate {
-				LoadItemsForGroup<T> (group);
-			});
-			StartQueue ();
+			//return;
+			try{
+				if (info == null)
+					info = GetGroupInfo<T> ();
+				var type = typeof(T);
+				var group = GetGroup (type, info, section);
+				cacheQueue.AddFirst (delegate {
+					LoadItemsForGroup<T> (group);
+				});
+				StartQueue ();
+			}
+			catch(Exception ex) {
+				Console.WriteLine (ex);
+			}
 		}
 
 		private void LoadItemsForGroup<T> (InstantDatabaseGroup group) where T : new()
 		{
-			if (group.Loaded)
-				return;
-			Console.WriteLine ("Loading items for group");
-			var type = typeof(T);
-			string query  = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 50", group.FromString(type.Name), group.GroupBy, group.OrderByString(true), group.FilterString (false));
-			List<T> items;
-			int current = 0;
-			bool hasMore = true;
-			while (hasMore) {
-				
-				if (string.IsNullOrEmpty (group.GroupBy))
-					query = string.Format ("select * from {0} {1} {2} LIMIT {3}, 50", group.FromString(type.Name), group.FilterString (true), group.OrderByString(true), current);
+			try{
+				if (group.Loaded)
+					return;
+				Console.WriteLine ("Loading items for group");
+				var type = typeof(T);
+				string query  = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 50", group.FromString(type.Name), group.GroupBy, group.OrderByString(true), group.FilterString (false));
+				List<T> items;
+				int current = 0;
+				bool hasMore = true;
+				while (hasMore) {
+					
+					if (string.IsNullOrEmpty (group.GroupBy))
+						query = string.Format ("select * from {0} {1} {2} LIMIT {3}, 50", group.FromString(type.Name), group.FilterString (true), group.OrderByString(true), current);
 
-				items = connection.Query<T> (query, group.GroupString, current).ToList ();
+					items = connection.Query<T> (query, group.GroupString, current).ToList ();
 
-				{
-					Dictionary<int,object> memoryGroup;
-					using(ThreadLock.Lock (memStoreLocker)){
-					var tuple = new Tuple<Type,string> (type, group.ToString());
-					if (!MemoryStore.ContainsKey (tuple)) {
-						MemoryStore.Add (tuple, new Dictionary<int, Dictionary<int, object>> ());
+					{
+						Dictionary<int,object> memoryGroup;
+						using(ThreadLock.Lock (memStoreLocker)){
+						var tuple = new Tuple<Type,string> (type, group.ToString());
+						if (!MemoryStore.ContainsKey (tuple)) {
+							MemoryStore.Add (tuple, new Dictionary<int, Dictionary<int, object>> ());
+							}
+
+						if (!MemoryStore [tuple].ContainsKey (group.Order))
+								try{
+							MemoryStore [tuple].Add (group.Order, new Dictionary<int, object> ());
+							}
+							catch(Exception ex)
+							{
+									Console.WriteLine (ex);
+							}
+						memoryGroup = MemoryStore [tuple] [group.Order];
+						}
+						for (int i = 0; i< items.Count; i++) {
+							lock (groupLocker)
+							{
+								if (memoryGroup.ContainsKey (i + current))
+									memoryGroup [i + current] = items [i];
+								else
+									memoryGroup.Add (i + current, items [i]);
+							}
+							AddObjectToDict (items [i]);
+
 						}
 
-					if (!MemoryStore [tuple].ContainsKey (group.Order))
-							try{
-						MemoryStore [tuple].Add (group.Order, new Dictionary<int, object> ());
-						}
-						catch(Exception ex)
-						{
-								Console.WriteLine (ex);
-						}
-					memoryGroup = MemoryStore [tuple] [group.Order];
 					}
-					for (int i = 0; i< items.Count; i++) {
-						lock (groupLocker)
-						{
-							if (memoryGroup.ContainsKey (i + current))
-								memoryGroup [i + current] = items [i];
-							else
-								memoryGroup.Add (i + current, items [i]);
-						}
-						AddObjectToDict (items [i]);
-
-					}
-
+					current += items.Count;
+					if (current == group.RowCount)
+						hasMore = false;
 				}
-				current += items.Count;
-				if (current == group.RowCount)
-					hasMore = false;
+				Console.WriteLine ("group loaded");
+				group.Loaded = true;
 			}
-			Console.WriteLine ("group loaded");
-			group.Loaded = true;
+			catch(Exception ex) {
+				Console.WriteLine (ex);
+			}
 		}
 
 		LinkedList<Action> cacheQueue = new LinkedList<Action> ();
