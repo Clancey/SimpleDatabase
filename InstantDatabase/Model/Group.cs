@@ -67,6 +67,14 @@ namespace Xamarin.Data
 			return filter;
 		}
 
+		public void AddFilter(string filter)
+		{
+			if (string.IsNullOrEmpty (Filter))
+				Filter = filter;
+			else
+				Filter += " and " + filter;
+		}
+
 		public string LimitString()
 		{
 			return (Limit > 0 ? " Limit " + Limit : " ");

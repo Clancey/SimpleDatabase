@@ -31,9 +31,11 @@ namespace InstantSample
 				{
 					var b = rand.Next(1);
 					var query = string.Format(getPersonQuery, b == 0 ? "Male": "Female");
-					var name = Db.Query<Person>(query,0).First();
-					name.Email = string.Format("{0}.{1}@email.com",name.FirstName,name.LastName);
-					names.Add(name);
+					var tempNames = Db.Query<Person>(query,50);
+					foreach(var name in tempNames){
+						name.Email = string.Format("{0}.{1}@email.com",name.FirstName,name.LastName);
+						names.Add(name);
+					}
 				}
 				return names;
 

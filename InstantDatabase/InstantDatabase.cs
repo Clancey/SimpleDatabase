@@ -659,7 +659,7 @@ namespace Xamarin.Data
 							}
 							catch(Exception ex)
 							{
-									Console.WriteLine (ex);
+								Console.WriteLine (ex);
 							}
 						memoryGroup = MemoryStore [tuple] [group.Order];
 						}
@@ -694,6 +694,7 @@ namespace Xamarin.Data
 
 		private void StartQueue ()
 		{
+			return;
 			lock (locker) {
 				if (queueIsRunning)
 					return;

@@ -493,7 +493,7 @@ namespace SQLite
 			if (TimeExecution) {
 				_sw.Stop ();
 				_elapsedMilliseconds += _sw.ElapsedMilliseconds;
-				Debug.WriteLine (string.Format ("Finished in {0} ms ({1:0.0} s total)", _sw.ElapsedMilliseconds, _elapsedMilliseconds / 1000.0));
+				Console.WriteLine (string.Format ("Finished in {0} ms ({1:0.0} s total)", _sw.ElapsedMilliseconds, _elapsedMilliseconds / 1000.0));
 			}
 			
 			return r;
@@ -516,7 +516,7 @@ namespace SQLite
 			if (TimeExecution) {
 				_sw.Stop ();
 				_elapsedMilliseconds += _sw.ElapsedMilliseconds;
-				Debug.WriteLine (string.Format ("Finished in {0} ms ({1:0.0} s total)", _sw.ElapsedMilliseconds, _elapsedMilliseconds / 1000.0));
+				Console.WriteLine (string.Format ("Finished in {0} ms ({1:0.0} s total)", _sw.ElapsedMilliseconds, _elapsedMilliseconds / 1000.0));
 			}
 			
 			return r;
@@ -1785,7 +1785,7 @@ namespace SQLite
 		public int ExecuteNonQuery ()
 		{
 			if (_conn.Trace) {
-				Debug.WriteLine ("Executing: " + this);
+				Console.WriteLine ("Executing: " + this);
 			}
 					
 			var r = SQLite3.Result.OK;
@@ -1838,7 +1838,7 @@ namespace SQLite
 		public IEnumerable<T> ExecuteDeferredQuery<T> (TableMapping map)
 		{
 			if (_conn.Trace) {
-				Debug.WriteLine ("Executing Query: " + this);
+				Console.WriteLine ("Executing Query: " + this);
 			}
 					
 			var stmt = Prepare ();
@@ -1870,7 +1870,7 @@ namespace SQLite
 		public T ExecuteScalar<T> ()
 		{
 			if (_conn.Trace) {
-				Debug.WriteLine ("Executing Query: " + this);
+				Console.WriteLine ("Executing Query: " + this);
 			}
 					
 			T val = default(T);
@@ -2072,7 +2072,7 @@ namespace SQLite
 		public int ExecuteNonQuery (object[] source)
 		{
 			if (Connection.Trace) {
-				Debug.WriteLine ("Executing: " + CommandText);
+				Console.WriteLine ("Executing: " + CommandText);
 			}
 					
 			var r = SQLite3.Result.OK;
@@ -2654,7 +2654,7 @@ namespace SQLite
 		{
 			IntPtr stmt = IntPtr.Zero;
 			try{
-				Debug.WriteLine(query);
+		//Console.WriteLine(query);
 				var r = Prepare2 (db, query, query.Length, out stmt, IntPtr.Zero);
 				if (r != Result.OK) {
 					throw SQLiteException.New (r, GetErrmsg (db));
