@@ -1,5 +1,6 @@
 using System;
 using SQLite;
+using System.Collections.Generic;
 
 namespace Xamarin.Data
 {
@@ -15,8 +16,10 @@ namespace Xamarin.Data
 	}
 	public class GroupInfo
 	{
+
 		[Indexed]
 		public string GroupBy {get;set;}
+		public object Params { get; set;}
 		public bool OrderByDesc { get; set;}
 		public string GroupString {get;set;}
 		public bool GroupOrderByDesc { get; set;}
@@ -40,6 +43,7 @@ namespace Xamarin.Data
 				Filter = this.Filter,
 				From = this.From,
 				Limit = this.Limit,
+				Params = this.Params,
 			};
 		}
 

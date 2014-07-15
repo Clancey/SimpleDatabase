@@ -185,7 +185,7 @@ namespace Xamarin.Data
 				else
 					rowQuery = string.Format ("select count(*) from {0} where {1} = ? {2}", groupInfo.FromString(type.Name), groupInfo.GroupBy, groupInfo.FilterString (false));
 				//lock(Locker){
-					group.RowCount = connection.ExecuteScalar<int> (rowQuery, group.GroupString);
+				group.RowCount = connection.ExecuteScalar<int> (rowQuery, group.GroupString,groupInfo.Params);
 				//}
 				if(groupInfo.Limit > 0)
 					group.RowCount = Math.Min(group.RowCount,groupInfo.Limit);
