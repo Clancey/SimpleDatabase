@@ -16,7 +16,11 @@ namespace Xamarin.Data
 	}
 	public class GroupInfo
 	{
-
+		public GroupInfo()
+		{
+			Filter = "";
+			From = "";
+		}
 		[Indexed]
 		public string GroupBy {get;set;}
 		public object Params { get; set;}
@@ -121,7 +125,7 @@ namespace Xamarin.Data
 		}
 		public override string ToString ()
 		{
-			return string.Format ("[GroupInfo: GroupBy={0}, OrderBy={1}, Filter={2}, From={3}]", GroupBy, OrderBy, Filter,From);
+			return string.Format ("[GroupInfo: GroupBy={0}, OrderBy={1}, Filter={2}, From={3} ,Params{4}]", GroupBy, OrderBy, Filter,From,Params);
 		}
 
 	}
