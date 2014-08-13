@@ -185,7 +185,7 @@ namespace Xamarin.Data
 				else
 					rowQuery = string.Format ("select count(*) from {0} where {1} = ? {2}", groupInfo.FromString(type.Name), groupInfo.GroupBy, groupInfo.FilterString (false));
 				//lock(Locker){
-				if(groupInfo.Filter.Contains("?") && string.IsNullOrEmpty(groupInfo.GroupString))
+				if(!string.IsNullOrEmpty(groupInfo.Filter) && groupInfo.Filter.Contains("?") && string.IsNullOrEmpty(groupInfo.GroupString))
 				group.RowCount = connection.ExecuteScalar<int> (rowQuery,groupInfo.Params);
 				else 
 					group.RowCount = connection.ExecuteScalar<int> (rowQuery, group.GroupString,groupInfo.Params);
@@ -462,7 +462,7 @@ namespace Xamarin.Data
 				var parameters = new List<object>();
 				if(group.GroupString.Contains("?"))
 					parameters.Add(group.GroupString);
-				if(info.Filter.Contains("?"))
+				if(!string.IsNullOrEmpty(info.Filter) && info.Filter.Contains("?"))
 					parameters.Add(info.Params);
 				parameters.Add(row);
 				if(group.Filter.Contains("?"))
