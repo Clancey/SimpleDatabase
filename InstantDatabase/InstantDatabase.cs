@@ -86,7 +86,7 @@ namespace Xamarin.Data
 		void init ()
 		{
 #if iOS
-			MonoTouch.Foundation.NSNotificationCenter.DefaultCenter.AddObserver("UIApplicationDidReceiveMemoryWarningNotification",delegate{
+			Foundation.NSNotificationCenter.DefaultCenter.AddObserver((Foundation.NSString)"UIApplicationDidReceiveMemoryWarningNotification",delegate{
 				ClearMemory();
 			});
 #endif
