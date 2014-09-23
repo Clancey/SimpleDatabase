@@ -1295,6 +1295,17 @@ namespace SQLite
 			var query = string.Format ("delete from \"{0}\"", map.TableName);
 			return Execute (query);
 		}
+
+		public int DeleteAll (System.Collections.IEnumerable objects)
+		{
+			var c = 0;
+			RunInTransaction (() => {
+				foreach (var r in objects) {
+					c += Delete (r);
+				}
+			});
+			return c;
+		}
 		
 		~SQLiteConnection ()
 		{

@@ -1009,6 +1009,12 @@ namespace Xamarin.Data
 		{
 			return connection.Delete (objectToDelete);
 		}
+
+		public int DeleteAll (System.Collections.IEnumerable objects)
+		{
+			return connection.DeleteAll (objects);
+		}
+
 		public int Update (object obj)
 		{
 			return connection.Update (obj);
