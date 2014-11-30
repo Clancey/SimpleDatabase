@@ -231,6 +231,7 @@ namespace Xamarin.Data
 
 				ObjectsDict.Clear ();
 				ClearMemoryStore ();
+				cacheQueue.Clear ();
 				//Objects.Clear ();
 				//GC.Collect ();
 			}
@@ -248,7 +249,15 @@ namespace Xamarin.Data
 		public void ClearMemory<T>()
 		{
 			var t = typeof(T);
-			ClearMemory(t,GetGroupInfo<T>());
+			using(ThreadLock.Lock(memStoreLocker)){
+				var toRemove = MemoryStore.Where (x => x.Key.Item1 == t).ToArray ();
+				foreach (var item in toRemove) {
+					MemoryStore.Remove (item.Key);
+				}
+			}
+			using(ThreadLock.Lock (groupLocker)){
+				Groups.Clear ();
+			}
 		}
 		public void ClearMemory<T>(GroupInfo groupInfo)
 		{
@@ -261,7 +270,9 @@ namespace Xamarin.Data
 			using(ThreadLock.Lock(memStoreLocker)){
 				MemoryStore.Remove (tuple);
 			}
-			Groups.Clear ();
+			using(ThreadLock.Lock (groupLocker)){
+				Groups.Clear ();
+			}
 		}
 
 		public string SectionHeader<T> (int section)
