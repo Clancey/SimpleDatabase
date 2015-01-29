@@ -960,6 +960,15 @@ namespace Xamarin.Data
 			return connection.InsertOrReplaceAll(objects, objType);
 		}
 
+		public void RunInTransaction(Action<SQLiteConnection> action)
+		{
+			var conn = connection.GetConnection();
+			using (conn.Lock())
+			{
+				conn.RunInTransaction (()=>(action(conn)));
+			}
+		}
+
 		/// <summary>
 		/// Inserts the given object and retrieves its
 		/// auto incremented primary key if it has one.
@@ -1024,6 +1033,12 @@ namespace Xamarin.Data
 		public int DeleteAll (System.Collections.IEnumerable objects)
 		{
 			return connection.DeleteAll (objects);
+		}
+
+
+		public int DeleteAll (System.Collections.IEnumerable objects,Type type)
+		{
+			return connection.DeleteAll (objects,type);
 		}
 
 		public int Update (object obj)
