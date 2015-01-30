@@ -1246,7 +1246,11 @@ namespace SQLite
 		/// </returns>
 		public int Delete (object objectToDelete)
 		{
-			var map = GetMapping (objectToDelete.GetType ());
+			return Delete(objectToDelete,objectToDelete.GetType ());
+		}
+		public int Delete (object objectToDelete, Type type)
+		{
+			var map = GetMapping (type);
 			var pk = map.PK;
 			if (pk == null) {
 				throw new NotSupportedException ("Cannot delete " + map.TableName + ": it has no PK");
@@ -1302,6 +1306,16 @@ namespace SQLite
 			RunInTransaction (() => {
 				foreach (var r in objects) {
 					c += Delete (r);
+				}
+			});
+			return c;
+		}
+		public int DeleteAll (System.Collections.IEnumerable objects, Type type)
+		{
+			var c = 0;
+			RunInTransaction (() => {
+				foreach (var r in objects) {
+					c += Delete (r,type);
 				}
 			});
 			return c;

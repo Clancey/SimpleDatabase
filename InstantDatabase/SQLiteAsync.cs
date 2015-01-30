@@ -226,6 +226,14 @@ namespace SQLite
 				return conn.DeleteAll (items);
 			}
 		}
+
+		public int DeleteAll (IEnumerable items, Type type)
+		{
+			var conn = GetConnection ();
+			using (conn.Lock ()) {
+				return conn.DeleteAll (items,type);
+			}
+		}
 		
 		public Task<T> GetAsync<T> (object pk)
 			where T : new()
