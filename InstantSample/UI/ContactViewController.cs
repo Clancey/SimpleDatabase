@@ -1,5 +1,5 @@
 using System;
-using MonoTouch.UIKit;
+using UIKit;
 using Xamarin.Data;
 using System.IO;
 
@@ -31,17 +31,17 @@ namespace InstantSample
 				Database.Main.MakeClassInstant<T>();
 			}
 			#region implemented abstract members of UITableViewSource
-			public override int NumberOfSections (UITableView tableView)
+			public override nint NumberOfSections (UITableView tableView)
 			{
 				return Database.Main.NumberOfSections<T> ();
 			}
 
-			public override int RowsInSection (UITableView tableview, int section)
+			public override nint RowsInSection (UITableView tableview, nint section)
 			{
-				return Database.Main.RowsInSection<T> (section);
+				return Database.Main.RowsInSection<T> ((int)section);
 			}
 
-			public override UITableViewCell GetCell (UITableView tableView, MonoTouch.Foundation.NSIndexPath indexPath)
+			public override UITableViewCell GetCell (UITableView tableView, Foundation.NSIndexPath indexPath)
 			{
 				var cell = tableView.DequeueReusableCell ("person");
 				if (cell == null)
@@ -52,9 +52,9 @@ namespace InstantSample
 				cell.DetailTextLabel.Text = person.Email;
 				return cell;
 			}
-			public override string TitleForHeader (UITableView tableView, int section)
+			public override string TitleForHeader (UITableView tableView, nint section)
 			{
-				return Database.Main.SectionHeader<T> (section);
+				return Database.Main.SectionHeader<T> ((int)section);
 			}
 			public override string[] SectionIndexTitles (UITableView tableView)
 			{

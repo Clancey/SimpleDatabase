@@ -1,7 +1,7 @@
 using System;
 using Xamarin.Tables;
 #if iOS
-using MonoTouch.UIKit;
+using UIKit;
 #elif Android
 using Android.Widget;
 using Android.Content;
