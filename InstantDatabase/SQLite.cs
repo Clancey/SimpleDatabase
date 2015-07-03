@@ -30,7 +30,7 @@ using System.Reflection;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
-
+using Xamarin.Data;
 #if USE_CSHARP_SQLITE
 using Community.CsharpSqlite;
 using Sqlite3DatabaseHandle = Community.CsharpSqlite.Sqlite3.sqlite3;
@@ -1857,6 +1857,8 @@ namespace SQLite
 		/// </remarks>
 		protected virtual void OnInstanceCreated (object obj)
 		{
+			if(obj is IPopulated)
+				((IPopulated)obj).Populated();
 			// Can be overridden.
 		}
 				

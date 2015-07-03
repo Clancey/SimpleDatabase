@@ -39,11 +39,11 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Resources\" />
-    <Folder Include="Model\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Xamarin\iOS\Xamarin.iOS.CSharp.targets" />
   <ItemGroup>
     <Compile Include="InstantDatabase.cs" />
+    <Compile Include="IPopulated.cs" />
     <Compile Include="SQLite.cs" />
     <Compile Include="Model\Group.cs" />
     <Compile Include="SQLiteAsync.cs" />

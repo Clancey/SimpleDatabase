@@ -77,7 +77,7 @@ namespace Xamarin.Data
 			connection = sqliteConnection;
 			init ();
 		}
-		public InstantDatabase (string databasePath, bool storeDateTimeAsTicks = false)
+		public InstantDatabase (string databasePath)
 		{
 			connection = new SQLiteAsyncConnection (databasePath, true);
 			init ();
@@ -965,7 +965,7 @@ namespace Xamarin.Data
 			var conn = connection.GetConnection();
 			using (conn.Lock())
 			{
-				conn.RunInTransaction (()=>(action(conn)));
+				conn.RunInTransaction (()=>action(conn));
 			}
 		}
 
@@ -1056,11 +1056,16 @@ namespace Xamarin.Data
 		{
 			return connection.UpdateAll (objects);
 		}
-		public int CreateTable<T> () where T : new()
+
+		public CreateTablesResult CreateTables(params Type[] types)
 		{
-			var t = connection.CreateTableAsync<T>();
-			t.Wait();
-			return t.Result.Results.Count;
+			return connection.CreateTables(types);
+		}
+        public int CreateTable<T> () where T : new()
+		{
+			var t = connection.CreateTableAsync<T>().Result;
+			//t.Wait();
+			return t.Results.Count;
 		}
 		public T ExecuteScalar<T> (string query, params object[] args) where T : new()
 		{
@@ -1072,7 +1077,7 @@ namespace Xamarin.Data
 	}
 
 	[AttributeUsage (AttributeTargets.Property)]
-	public class GroupByAttribute : Attribute
+	public class GroupByAttribute : IndexedAttribute
 	{
 		
 		public bool Descending {get;set;}
@@ -1083,7 +1088,7 @@ namespace Xamarin.Data
 	}
 	
 	[AttributeUsage (AttributeTargets.Property)]
-	public class OrderByAttribute : Attribute
+	public class OrderByAttribute : IndexedAttribute
 	{
 		public bool Descending {get;set;}
 		public OrderByAttribute(bool descending = false)
