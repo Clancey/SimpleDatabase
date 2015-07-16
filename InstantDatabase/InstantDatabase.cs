@@ -444,10 +444,7 @@ namespace Xamarin.Data
 
 				T item = connection.Query<T> (query, primaryKey).FirstOrDefault ();
 
-				if(item != null)
-					AddObjectToDict(item);
-				return item;
-			
+				return item != null ? GetIfCached(item) : item;
 			}
 			catch(Exception ex)
 			{
@@ -483,6 +480,7 @@ namespace Xamarin.Data
 
 			if (item == null)
 				return new T ();
+				
 			var tuple = new Tuple<Type,string> (t, info.ToString());
 			using(ThreadLock.Lock (memStoreLocker)) {
 				if (!MemoryStore.ContainsKey (tuple))
@@ -494,8 +492,7 @@ namespace Xamarin.Data
 					groups [section].Add (row, item);
 				else
 					groups [section] [row] = item;
-				AddObjectToDict (item);
-				return item;
+				return GetIfCached(item);
 			}
 			}
 			catch(Exception ex)
@@ -515,10 +512,7 @@ namespace Xamarin.Data
 				object pk = primaryKey.GetValue(item, null);
 				if (!ObjectsDict.ContainsKey(t))
 					ObjectsDict.Add(t, new Dictionary<object, object>());
-				if (ObjectsDict[t].ContainsKey(pk))
-					ObjectsDict[t][pk] = item;
-				else
-					ObjectsDict[t].Add(pk, item);
+				ObjectsDict[t][pk] = item;
 				//				if (!Objects.ContainsKey (t))
 				//					Objects.Add (t, new List<object> ());
 				//				if (!Objects [t].Contains (item))
@@ -528,6 +522,28 @@ namespace Xamarin.Data
 		public void AddObjectToDict (object item)
 		{
 			AddObjectToDict(item, item.GetType());
+		}
+
+		T GetIfCached<T>(T item)
+		{
+			using (ThreadLock.Lock(groupLocker))
+			{
+				var t = typeof (T);
+				var primaryKey = GetPrimaryKeyProperty(t);
+				if (primaryKey == null)
+					return item;
+				var pk = primaryKey.GetValue(item, null);
+
+				if (!ObjectsDict.ContainsKey(t))
+					ObjectsDict.Add(t, new Dictionary<object, object>());
+				object oldItem;
+				if (ObjectsDict[t].TryGetValue(pk, out oldItem))
+				{
+					return (T) oldItem;
+				}
+				ObjectsDict[t][pk] = item;
+				return item;
+			}
 		}
 
 		public int GetObjectCount<T> ()
@@ -583,8 +599,7 @@ namespace Xamarin.Data
 
 			if (item == null)
 				return default(T);
-			AddObjectToDict(item);
-			return item;
+			return GetIfCached(item);
 		}
 		public List<T> GetObjects<T> (GroupInfo info) where T : new()
 		{
@@ -693,7 +708,7 @@ namespace Xamarin.Data
 								else
 									memoryGroup.Add (i + current, items [i]);
 							}
-							AddObjectToDict (items [i]);
+							GetIfCached(items[i]);
 
 						}
 
