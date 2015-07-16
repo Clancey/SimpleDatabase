@@ -96,8 +96,16 @@ namespace SQLite
 			var conn = GetConnection ();
 			using (conn.Lock ()) {
 				foreach (Type type in types) {
-					int aResult = conn.CreateTable (type);
-					result.Results [type] = aResult;
+					try
+					{
+						int aResult = conn.CreateTable(type);
+						result.Results[type] = aResult;
+					}
+					catch (Exception)
+					{
+						Console.WriteLine("Error creating table for {0}",type);
+						throw;
+					}
 				}
 			}
 			return result;
