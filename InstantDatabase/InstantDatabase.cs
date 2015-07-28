@@ -578,7 +578,7 @@ namespace Xamarin.Data
 			var t = typeof(T);
 			string query =  string.Format("Select distinct count({0}) from ",column) + info.FromString(t.Name) + " " + filterString + info.LimitString();
 
-			int count = connection.ExecuteScalar<int> (query);
+			int count = connection.ExecuteScalar<int> (query,info.Params);
 			
 			if(info.Limit > 0)
 				return Math.Min(info.Limit,count);
