@@ -1044,7 +1044,14 @@ namespace Xamarin.Data
 				return connection.Query<T> (query, args);
 
 		}
-		
+
+		public Task<List<T>> QueryAsync<T>(string query, params object[] args) where T : new()
+		{
+			//lock(Locker)
+			return connection.QueryAsync<T>(query, args);
+
+		}
+
 		public int Delete (object objectToDelete)
 		{
 			return connection.Delete (objectToDelete);
