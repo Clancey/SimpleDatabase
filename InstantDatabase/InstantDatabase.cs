@@ -167,7 +167,7 @@ namespace Xamarin.Data
 			groups = new List<InstantDatabaseGroup> (){new InstantDatabaseGroup{GroupString = ""}};
 			else {
 				var query = string.Format ("select distinct {1} as GroupString from {0} {3} {2} {4}", groupInfo.FromString(type.Name), groupInfo.GroupBy, groupInfo.OrderByString(true), groupInfo.FilterString(true),groupInfo.LimitString());
-				groups = connection.Query<InstantDatabaseGroup> (query).ToList ();
+				groups = connection.Query<InstantDatabaseGroup> (query,groupInfo.Params).ToList ();
 			}
 			//var deleteQuery = string.Format ("delete from InstantDatabaseGroup where ClassName = ? and GroupBy = ? and OrderBy = ? and Filter = ?");
 			//int deleted = connection.Execute (deleteQuery, type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.Filter);
