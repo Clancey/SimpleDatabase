@@ -854,6 +854,7 @@ namespace Xamarin.Data
 
 		public Task<int> InsertAsync(object item)
 		{
+			AddObjectToDict(item);
 			return connection.InsertAsync (item);
 		}
 		public Task<int> InsertAsync(object item,string extra)
@@ -892,6 +893,7 @@ namespace Xamarin.Data
 		/// </returns>
 		public int Insert (object obj)
 		{
+			AddObjectToDict(obj);
 			return connection.Insert (obj);
 		}
 		
@@ -910,6 +912,7 @@ namespace Xamarin.Data
 		/// </returns>
 		public int InsertOrReplace (object obj)
 		{
+			AddObjectToDict(obj);
 			return connection.InsertOrReplace (obj);
 		}
 		
@@ -928,6 +931,7 @@ namespace Xamarin.Data
 		/// </returns>
 		public int Insert (object obj, Type objType)
 		{
+			AddObjectToDict(obj);
 			return connection.Insert (obj,objType);
 		}
 		
@@ -949,6 +953,7 @@ namespace Xamarin.Data
 		/// </returns>
 		public int InsertOrReplace (object obj, Type objType)
 		{
+			AddObjectToDict(obj,objType);
 			return connection.InsertOrReplace (obj,objType);
 		}
 
@@ -1058,12 +1063,14 @@ namespace Xamarin.Data
 
 		public int Update (object obj)
 		{
+			AddObjectToDict(obj);
 			return connection.Update (obj);
 		}
 
 		
 		public Task<int> UpdateAsync (object obj)
 		{
+			AddObjectToDict(obj);
 			return connection.UpdateAsync (obj);
 		}
 
