@@ -384,7 +384,7 @@ namespace Xamarin.Data
 				
 					count ++;
 				}
-			if(group == null || group.Count == 0)
+			if(group == null || section >= group.Count)
 					return new InstantDatabaseGroup();
 				return group [section];
 
