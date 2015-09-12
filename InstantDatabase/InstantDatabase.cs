@@ -185,8 +185,8 @@ namespace Xamarin.Data
 				else
 					rowQuery = string.Format ("select count(*) from {0} where {1} = ? {2}", groupInfo.FromString(type.Name), groupInfo.GroupBy, groupInfo.FilterString (false));
 				//lock(Locker){
-				if(!string.IsNullOrEmpty(groupInfo.Filter) && groupInfo.Filter.Contains("?") && string.IsNullOrEmpty(groupInfo.GroupString))
-				group.RowCount = connection.ExecuteScalar<int> (rowQuery,groupInfo.Params);
+				if(!string.IsNullOrEmpty(groupInfo.Filter) && groupInfo.Filter.Contains("?") && string.IsNullOrEmpty(group.GroupString))
+					group.RowCount = connection.ExecuteScalar<int> (rowQuery,groupInfo.Params);
 				else 
 					group.RowCount = connection.ExecuteScalar<int> (rowQuery, group.GroupString,groupInfo.Params);
 				//}
@@ -468,15 +468,19 @@ namespace Xamarin.Data
 					query = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 1", info.FromString(t.Name), info.GroupBy, info.OrderByString(true), info.FilterString (false));
 			
 				var parameters = new List<object>();
-				if(group.GroupString.Contains("?"))
+				if(!string.IsNullOrWhiteSpace(group.GroupString))
 					parameters.Add(group.GroupString);
 				if(!string.IsNullOrEmpty(info.Filter) && info.Filter.Contains("?"))
 					parameters.Add(info.Params);
 				parameters.Add(row);
-				if(group.Filter.Contains("?"))
-					item = connection.Query<T> (query,info.Params).FirstOrDefault ();
-				else
-					item = connection.Query<T> (query, group.GroupString, row).FirstOrDefault ();
+				//if (group.Filter.Contains("?"))
+				//{
+				//	item = string.IsNullOrEmpty(@group.GroupString) ? 
+				//		connection.Query<T>(query, info.Params).FirstOrDefault() : 
+				//		connection.Query<T>(query, @group.GroupString, info.Params).FirstOrDefault();
+				//}
+				//else
+					item = connection.Query<T> (query,parameters.ToArray()).FirstOrDefault ();
 
 			if (item == null)
 				return new T ();
