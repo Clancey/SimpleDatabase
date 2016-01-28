@@ -435,7 +435,7 @@ namespace Xamarin.Data
 			try{
 				var type = typeof(T);
 				if (!ObjectsDict.ContainsKey (type))
-					ObjectsDict.Add (type, new Dictionary<object, object> ());
+					ObjectsDict[type]= new Dictionary<object, object> ();
 				if (ObjectsDict [type].ContainsKey (primaryKey)) 
 					return (T)ObjectsDict [type] [primaryKey];
 				//Console.WriteLine("object not in objectsdict");
