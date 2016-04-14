@@ -46,7 +46,7 @@
     <Compile Include="SQLiteAsync.cs" />
     <Compile Include="IPopulated.cs" />
   </ItemGroup>
-  <Import Project="$(MSBuildExtensionsPath)\Novell\Novell.MonoDroid.CSharp.targets" />
+  <Import Project="$(MSBuildExtensionsPath)\Xamarin\Android\Xamarin.Android.CSharp.targets" />
   <ItemGroup>
     <Folder Include="Model\" />
   </ItemGroup>
