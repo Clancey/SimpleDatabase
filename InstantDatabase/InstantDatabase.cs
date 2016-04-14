@@ -396,10 +396,7 @@ namespace Xamarin.Data
 				groups = CreateGroupInfo(t,info);
 			using(ThreadLock.Lock (groupLocker)) {
 				var tuple = new Tuple<Type,string> (t, info.ToString());
-				if (!Groups.ContainsKey (tuple))
-					Groups.Add (tuple, groups);
-				else
-					Groups [tuple] = groups;
+				Groups [tuple] = groups;
 			}
 
 		}
