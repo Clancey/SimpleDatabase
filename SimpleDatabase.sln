@@ -1,6 +1,8 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "SimpleDatabase.Shared", "SimpleDatabase\SimpleDatabase.Shared.shproj", "{24B10281-9934-466B-BD72-7E439E72288D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleDatabase.iOS", "SimpleDatabase\SimpleDatabase.iOS.csproj", "{E8B052D6-9C21-4B3F-9520-29D7B38513C5}"
@@ -8,6 +10,11 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleDatabase.Droid", "SimpleDatabase\SimpleDatabase.Droid.csproj", "{DAB83EFA-1D12-4F40-A6E9-1F1B5470FAA1}"
 EndProject
 Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		SimpleDatabase\SimpleDatabase.Shared.projitems*{24b10281-9934-466b-bd72-7e439e72288d}*SharedItemsImports = 13
+		SimpleDatabase\SimpleDatabase.Shared.projitems*{dab83efa-1d12-4f40-a6e9-1f1b5470faa1}*SharedItemsImports = 4
+		SimpleDatabase\SimpleDatabase.Shared.projitems*{e8b052d6-9c21-4b3f-9520-29d7b38513c5}*SharedItemsImports = 4
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
@@ -21,6 +28,9 @@ Global
 		{DAB83EFA-1D12-4F40-A6E9-1F1B5470FAA1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DAB83EFA-1D12-4F40-A6E9-1F1B5470FAA1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DAB83EFA-1D12-4F40-A6E9-1F1B5470FAA1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = InstantSample\InstantiOSSample.csproj
