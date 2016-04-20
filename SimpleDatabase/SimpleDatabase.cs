@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 //using Java.Lang;
 using System.Threading;
 
-namespace Xamarin.Data
+namespace SimpleDatabase
 {
 
 	public static class Tracer
@@ -62,22 +62,22 @@ namespace Xamarin.Data
 			//Serialize this class for doing analysis of thread-lock activity time 
 		}
 	}
-	public class InstantDatabase 
+	public class SimpleDatabaseConnection
 	{
 		Dictionary<Tuple<Type,string>,Dictionary<int,Dictionary<int,Object>>> MemoryStore = new Dictionary<Tuple<Type,string>, Dictionary<int, Dictionary<int, object>>> ();
 		Dictionary<Type,Dictionary<object,object>> ObjectsDict = new Dictionary<Type, Dictionary<object, object>> ();
 		//Dictionary<Type,List<object>> Objects = new Dictionary<Type, List<object>> ();
-		Dictionary<Tuple<Type,string>,List<InstantDatabaseGroup>> Groups = new Dictionary<Tuple<Type,string>, List<InstantDatabaseGroup>> ();
+		Dictionary<Tuple<Type,string>,List<SimpleDatabaseGroup>> Groups = new Dictionary<Tuple<Type,string>, List<SimpleDatabaseGroup>> ();
 		Dictionary<Type,GroupInfo> GroupInfoDict = new Dictionary<Type, GroupInfo> ();
 		object groupLocker = new object ();
 		object memStoreLocker = new object ();
 		SQLiteAsyncConnection connection;
-		public InstantDatabase(SQLiteAsyncConnection sqliteConnection)
+		public SimpleDatabaseConnection(SQLiteAsyncConnection sqliteConnection)
 		{
 			connection = sqliteConnection;
 			init ();
 		}
-		public InstantDatabase (string databasePath)
+		public SimpleDatabaseConnection (string databasePath)
 		{
 			connection = new SQLiteAsyncConnection (databasePath, true);
 			init ();
@@ -148,7 +148,7 @@ namespace Xamarin.Data
 
 		private void SetGroups (Type type, GroupInfo groupInfo)
 		{
-			List<InstantDatabaseGroup> groups = CreateGroupInfo (type, groupInfo);
+			List<SimpleDatabaseGroup> groups = CreateGroupInfo (type, groupInfo);
 
 			var tuple = new Tuple<Type,string> (type, groupInfo.ToString());
 			using(ThreadLock.Lock(groupLocker)) {
@@ -160,16 +160,16 @@ namespace Xamarin.Data
 			
 		}
 
-		private List<InstantDatabaseGroup> CreateGroupInfo(Type type, GroupInfo groupInfo)
+		private List<SimpleDatabaseGroup> CreateGroupInfo(Type type, GroupInfo groupInfo)
 		{
-			List<InstantDatabaseGroup> groups;
+			List<SimpleDatabaseGroup> groups;
 			if (string.IsNullOrEmpty (groupInfo.GroupBy))
-			groups = new List<InstantDatabaseGroup> (){new InstantDatabaseGroup{GroupString = ""}};
+			groups = new List<SimpleDatabaseGroup> (){new SimpleDatabaseGroup{GroupString = ""}};
 			else {
 				var query = string.Format ("select distinct {1} as GroupString from {0} {3} {2} {4}", groupInfo.FromString(type.Name), groupInfo.GroupBy, groupInfo.OrderByString(true), groupInfo.FilterString(true),groupInfo.LimitString());
-				groups = connection.Query<InstantDatabaseGroup> (query,groupInfo.Params).ToList ();
+				groups = connection.Query<SimpleDatabaseGroup> (query,groupInfo.Params).ToList ();
 			}
-			//var deleteQuery = string.Format ("delete from InstantDatabaseGroup where ClassName = ? and GroupBy = ? and OrderBy = ? and Filter = ?");
+			//var deleteQuery = string.Format ("delete from SimpleDatabaseGroup where ClassName = ? and GroupBy = ? and OrderBy = ? and Filter = ?");
 			//int deleted = connection.Execute (deleteQuery, type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.Filter);
 
 			for (int i = 0; i < groups.Count(); i++) {
@@ -353,22 +353,22 @@ namespace Xamarin.Data
 			}
 		}
 		
-		private InstantDatabaseGroup GetGroup<T> (int section)
+		private SimpleDatabaseGroup GetGroup<T> (int section)
 		{
 			return GetGroup<T> (GetGroupInfo<T> (), section);
 		}
 
-		private InstantDatabaseGroup GetGroup<T> (GroupInfo info, int section)
+		private SimpleDatabaseGroup GetGroup<T> (GroupInfo info, int section)
 		{
 			return GetGroup (typeof(T), info, section);
 
 		}
 
-		private InstantDatabaseGroup GetGroup (Type t, GroupInfo info, int section)
+		private SimpleDatabaseGroup GetGroup (Type t, GroupInfo info, int section)
 		{
 
 				var tuple = new Tuple<Type,string> (t, info.ToString());
-				List<InstantDatabaseGroup> group = null;
+				List<SimpleDatabaseGroup> group = null;
 				int count = 0;
 				while((group == null || group.Count <= section) && count < 5)
 				{
@@ -385,14 +385,14 @@ namespace Xamarin.Data
 					count ++;
 				}
 			if(group == null || section >= group.Count)
-					return new InstantDatabaseGroup();
+					return new SimpleDatabaseGroup();
 				return group [section];
 
 		}
 
 		private void FillGroups (Type t, GroupInfo info)
 		{
-			List<InstantDatabaseGroup> groups;
+			List<SimpleDatabaseGroup> groups;
 				groups = CreateGroupInfo(t,info);
 			using(ThreadLock.Lock (groupLocker)) {
 				var tuple = new Tuple<Type,string> (t, info.ToString());
@@ -665,7 +665,7 @@ namespace Xamarin.Data
 			}
 		}
 
-		private void LoadItemsForGroup<T> (InstantDatabaseGroup group) where T : new()
+		private void LoadItemsForGroup<T> (SimpleDatabaseGroup group) where T : new()
 		{
 			try{
 				if (group.Loaded)

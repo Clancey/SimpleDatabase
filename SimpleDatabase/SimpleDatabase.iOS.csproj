@@ -6,15 +6,17 @@
     <ProjectGuid>{E8B052D6-9C21-4B3F-9520-29D7B38513C5}</ProjectGuid>
     <ProjectTypeGuids>{FEACFBD2-3405-455C-9665-78FE426C6842};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <OutputType>Library</OutputType>
-    <RootNamespace>Xamarin.Data</RootNamespace>
+    <RootNamespace>SimpleDatabase</RootNamespace>
     <IPhoneResourcePrefix>Resources</IPhoneResourcePrefix>
-    <AssemblyName>InstantDatabase</AssemblyName>
+    <AssemblyName>SimpleDatabase</AssemblyName>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>True</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>False</Optimize>
-    <OutputPath>bin\Debug</OutputPath>
+    <OutputPath>bin\iOS\Debug</OutputPath>
     <DefineConstants>DEBUG;iOS</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -25,7 +27,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
     <Optimize>True</Optimize>
-    <OutputPath>bin\Release</OutputPath>
+    <OutputPath>bin\iOS\Release</OutputPath>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <ConsolePause>False</ConsolePause>
@@ -40,12 +42,6 @@
   <ItemGroup>
     <Folder Include="Resources\" />
   </ItemGroup>
+  <Import Project="SimpleDatabase.Shared.projitems" Label="Shared" Condition="Exists('SimpleDatabase.Shared.projitems')" />
   <Import Project="$(MSBuildExtensionsPath)\Xamarin\iOS\Xamarin.iOS.CSharp.targets" />
-  <ItemGroup>
-    <Compile Include="InstantDatabase.cs" />
-    <Compile Include="IPopulated.cs" />
-    <Compile Include="SQLite.cs" />
-    <Compile Include="Model\Group.cs" />
-    <Compile Include="SQLiteAsync.cs" />
-  </ItemGroup>
 </Project>

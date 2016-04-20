@@ -6,18 +6,20 @@
     <ProjectGuid>{DAB83EFA-1D12-4F40-A6E9-1F1B5470FAA1}</ProjectGuid>
     <ProjectTypeGuids>{EFBA0AD7-5A72-4C68-AF49-83D382785DCF};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <OutputType>Library</OutputType>
-    <RootNamespace>InstantDatabase.Droid</RootNamespace>
+    <RootNamespace>SimpleDatabase.Droid</RootNamespace>
     <MonoAndroidResourcePrefix>Resources</MonoAndroidResourcePrefix>
     <MonoAndroidAssetsPrefix>Assets</MonoAndroidAssetsPrefix>
     <AndroidResgenFile>Resources\Resource.designer.cs</AndroidResgenFile>
     <AndroidResgenClass>Resource</AndroidResgenClass>
-    <AssemblyName>InstantDatabase.Droid</AssemblyName>
+    <AssemblyName>SimpleDatabase.Droid</AssemblyName>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>True</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>False</Optimize>
-    <OutputPath>bin\Debug</OutputPath>
+    <OutputPath>bin\Droid\Debug</OutputPath>
     <DefineConstants>DEBUG;</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -27,7 +29,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
     <Optimize>True</Optimize>
-    <OutputPath>bin\Release</OutputPath>
+    <OutputPath>bin\Droid\Release</OutputPath>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <ConsolePause>False</ConsolePause>
@@ -39,15 +41,6 @@
     <Reference Include="System.Core" />
     <Reference Include="Mono.Android" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Model\Group.cs" />
-    <Compile Include="InstantDatabase.cs" />
-    <Compile Include="SQLite.cs" />
-    <Compile Include="SQLiteAsync.cs" />
-    <Compile Include="IPopulated.cs" />
-  </ItemGroup>
+  <Import Project="SimpleDatabase.Shared.projitems" Label="Shared" Condition="Exists('SimpleDatabase.Shared.projitems')" />
   <Import Project="$(MSBuildExtensionsPath)\Xamarin\Android\Xamarin.Android.CSharp.targets" />
-  <ItemGroup>
-    <Folder Include="Model\" />
-  </ItemGroup>
 </Project>

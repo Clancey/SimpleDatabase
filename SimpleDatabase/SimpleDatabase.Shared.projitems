@@ -6,10 +6,10 @@
     <SharedGUID>{24B10281-9934-466B-BD72-7E439E72288D}</SharedGUID>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
-    <Import_RootNamespace>InstantDatabase.Shared</Import_RootNamespace>
+    <Import_RootNamespace>SimpleDatabase.Shared</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)InstantDatabase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SimpleDatabase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)IPopulated.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SQLite.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SQLiteAsync.cs" />

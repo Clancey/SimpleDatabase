@@ -2,9 +2,9 @@ using System;
 using SQLite;
 using System.Collections.Generic;
 
-namespace Xamarin.Data
+namespace SimpleDatabase
 {
-	class InstantDatabaseGroup : GroupInfo
+	class SimpleDatabaseGroup : GroupInfo
 	{
 		[Indexed]
 		public string ClassName {get;set;}
