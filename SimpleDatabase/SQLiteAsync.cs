@@ -32,15 +32,22 @@ namespace SQLite
 	public partial class SQLiteAsyncConnection 
 	{
 		SQLiteConnectionString _connectionString;
-		
-		public SQLiteAsyncConnection (string databasePath, bool storeDateTimeAsTicks = false)
+		SQLiteOpenFlags _openFlags;
+
+		public SQLiteAsyncConnection (string databasePath, bool storeDateTimeAsTicks = true)
+			: this (databasePath, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create, storeDateTimeAsTicks)
 		{
+		}
+
+		public SQLiteAsyncConnection (string databasePath, SQLiteOpenFlags openFlags, bool storeDateTimeAsTicks = true)
+		{
+			_openFlags = openFlags;
 			_connectionString = new SQLiteConnectionString (databasePath, storeDateTimeAsTicks);
 		}
 		
 		public SQLiteConnectionWithLock GetConnection ()
 		{
-			return SQLiteConnectionPool.Shared.GetConnection (_connectionString);
+			return SQLiteConnectionPool.Shared.GetConnection (_connectionString,_openFlags);
 		}
 		
 		public Task<CreateTablesResult> CreateTableAsync<T> ()
@@ -555,31 +562,31 @@ namespace SQLite
 		}
 	}
 	
-	public class SQLiteConnectionPool
+	class SQLiteConnectionPool
 	{
 		class Entry
 		{
 			public SQLiteConnectionString ConnectionString { get; private set; }
-
 			public SQLiteConnectionWithLock Connection { get; private set; }
-			
-			public Entry (SQLiteConnectionString connectionString)
+
+			public Entry (SQLiteConnectionString connectionString, SQLiteOpenFlags openFlags)
 			{
 				ConnectionString = connectionString;
-				Connection = new SQLiteConnectionWithLock (connectionString);
+				Connection = new SQLiteConnectionWithLock (connectionString, openFlags);
 			}
-			
+
 			public void OnApplicationSuspended ()
 			{
 				Connection.Dispose ();
 				Connection = null;
 			}
 		}
-		
+
 		readonly Dictionary<string, Entry> _entries = new Dictionary<string, Entry> ();
 		readonly object _entriesLock = new object ();
+
 		static readonly SQLiteConnectionPool _shared = new SQLiteConnectionPool ();
-		
+
 		/// <summary>
 		/// Gets the singleton instance of the connection tool.
 		/// </summary>
@@ -588,23 +595,22 @@ namespace SQLite
 				return _shared;
 			}
 		}
-		
-		public SQLiteConnectionWithLock GetConnection (SQLiteConnectionString connectionString)
+
+		public SQLiteConnectionWithLock GetConnection (SQLiteConnectionString connectionString, SQLiteOpenFlags openFlags)
 		{
 			lock (_entriesLock) {
 				Entry entry;
 				string key = connectionString.ConnectionString;
-				
+
 				if (!_entries.TryGetValue (key, out entry)) {
-					entry = new Entry (connectionString);
+					entry = new Entry (connectionString, openFlags);
 					_entries [key] = entry;
 				}
-				//Console.WriteLine("Entries count {0}", _entries.Count);
-				
+
 				return entry.Connection;
 			}
 		}
-		
+
 		/// <summary>
 		/// Closes all connections managed by this pool.
 		/// </summary>
@@ -617,7 +623,7 @@ namespace SQLite
 				_entries.Clear ();
 			}
 		}
-		
+
 		/// <summary>
 		/// Call this method when the application is suspended.
 		/// </summary>
@@ -627,31 +633,31 @@ namespace SQLite
 			Reset ();
 		}
 	}
-	
+
 	public class SQLiteConnectionWithLock : SQLiteConnection
 	{
 		readonly object _lockPoint = new object ();
-		
-		public SQLiteConnectionWithLock (SQLiteConnectionString connectionString)
-			: base (connectionString.DatabasePath, connectionString.StoreDateTimeAsTicks)
+
+		public SQLiteConnectionWithLock (SQLiteConnectionString connectionString, SQLiteOpenFlags openFlags)
+			: base (connectionString.DatabasePath, openFlags, connectionString.StoreDateTimeAsTicks)
 		{
 		}
-		
+
 		public IDisposable Lock ()
 		{
 			return new LockWrapper (_lockPoint);
 		}
-		
+
 		private class LockWrapper : IDisposable
 		{
 			object _lockPoint;
-			
+
 			public LockWrapper (object lockPoint)
 			{
 				_lockPoint = lockPoint;
 				Monitor.Enter (_lockPoint);
 			}
-			
+
 			public void Dispose ()
 			{
 				Monitor.Exit (_lockPoint);
