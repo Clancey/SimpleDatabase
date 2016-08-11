@@ -983,10 +983,10 @@ namespace SimpleDatabase
 
 		public void RunInTransaction(Action<SQLiteConnection> action)
 		{
-			var conn = connection.GetConnection();
+			var conn = connection.GetWriteConnection();
 			using (conn.Lock())
 			{
-				conn.RunInTransaction (()=>action(conn));
+				conn.Connection.RunInTransaction (()=>action(conn.Connection));
 			}
 		}
 

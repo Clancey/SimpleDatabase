@@ -31,9 +31,16 @@ namespace SQLite
 {
 	public partial class SQLiteAsyncConnection 
 	{
-		SQLiteConnectionString _connectionString;
-		SQLiteOpenFlags _openFlags;
+		static SQLiteAsyncConnection ()
+		{
+			//This will globally set the state to Serialized
+			SQLite3.Shutdown ();
+			SQLite3.Config (SQLite3.ConfigOption.Serialized);
+			SQLite3.Initialize ();
+		}
 
+		SQLiteConnection _connection;
+		SQLiteConnectionWithLock _lockedConnection;
 		public SQLiteAsyncConnection (string databasePath, bool storeDateTimeAsTicks = true)
 			: this (databasePath, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create, storeDateTimeAsTicks)
 		{
@@ -41,13 +48,20 @@ namespace SQLite
 
 		public SQLiteAsyncConnection (string databasePath, SQLiteOpenFlags openFlags, bool storeDateTimeAsTicks = true)
 		{
-			_openFlags = openFlags;
-			_connectionString = new SQLiteConnectionString (databasePath, storeDateTimeAsTicks);
+			_connection = new SQLiteConnection (databasePath,openFlags, storeDateTimeAsTicks);
+			//Put into WAL mode
+			_connection.ExecuteScalar<string> ("PRAGMA journal_mode=WAL");
+			_lockedConnection = new SQLiteConnectionWithLock (_connection);
 		}
-		
-		public SQLiteConnectionWithLock GetConnection ()
+
+
+		public SQLiteConnectionWithLock GetWriteConnection ()
 		{
-			return SQLiteConnectionPool.Shared.GetConnection (_connectionString,_openFlags);
+			return _lockedConnection;
+		}
+		public SQLiteConnection GetReadConnection ()
+		{
+			return _connection;
 		}
 		
 		public Task<CreateTablesResult> CreateTableAsync<T> ()
@@ -100,12 +114,12 @@ namespace SQLite
 		public CreateTablesResult CreateTables(params Type[] types)
 		{
 			CreateTablesResult result = new CreateTablesResult ();
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
 				foreach (Type type in types) {
 					try
 					{
-						int aResult = conn.CreateTable(type);
+						int aResult = conn.Connection.CreateTable(type);
 						result.Results[type] = aResult;
 					}
 					catch (Exception)
@@ -122,9 +136,9 @@ namespace SQLite
 			where T : new ()
 		{
 			return Task.Factory.StartNew (() => {
-				var conn = GetConnection ();
+				var conn = GetWriteConnection ();
 				using (conn.Lock ()) {
-					return conn.DropTable<T> ();
+					return conn.Connection.DropTable<T> ();
 				}
 			});
 		}
@@ -138,9 +152,9 @@ namespace SQLite
 		
 		public int Insert (object item)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.Insert (item);
+				return conn.Connection.Insert (item);
 			}
 		}
 		
@@ -153,9 +167,9 @@ namespace SQLite
 		
 		public int Insert (object item,string extra)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.Insert (item,extra);
+				return conn.Connection.Insert (item,extra);
 			}
 		}
 		
@@ -168,9 +182,9 @@ namespace SQLite
 		
 		public int Insert (object item, Type type)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.Insert (item,type);
+				return conn.Connection.Insert (item,type);
 			}
 		}
 		
@@ -184,9 +198,9 @@ namespace SQLite
 		
 		public int Insert (object item, string extra, Type type)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.Insert (item,extra,type);
+				return conn.Connection.Insert (item,extra,type);
 			}
 		}
 
@@ -199,9 +213,9 @@ namespace SQLite
 		
 		public int Update (object item)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.Update (item);
+				return conn.Connection.Update (item);
 			}
 		}
 
@@ -214,9 +228,9 @@ namespace SQLite
 		
 		public int UpdateAll (IEnumerable items)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.UpdateAll (items);
+				return conn.Connection.UpdateAll (items);
 			}
 		}
 		
@@ -228,25 +242,25 @@ namespace SQLite
 		}
 		public int Delete (object item)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.Delete (item);
+				return conn.Connection.Delete (item);
 			}
 		}
 
 		public int DeleteAll (IEnumerable items)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.DeleteAll (items);
+				return conn.Connection.DeleteAll (items);
 			}
 		}
 
 		public int DeleteAll (IEnumerable items, Type type)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.DeleteAll (items,type);
+				return conn.Connection.DeleteAll (items,type);
 			}
 		}
 		
@@ -255,10 +269,8 @@ namespace SQLite
 		{
 			return Task.Factory.StartNew (() =>
 			{
-				var conn = GetConnection ();
-				using (conn.Lock()) {
-					return conn.Get<T> (pk);
-				}
+				var conn = GetReadConnection ();
+				return conn.Get<T> (pk);
 			});
 		}
 		
@@ -266,10 +278,8 @@ namespace SQLite
 			where T : new ()
 		{
 			return Task.Factory.StartNew (() => {
-				var conn = GetConnection ();
-				using (conn.Lock ()) {
-					return conn.Find<T> (pk);
-				}
+				var conn = GetReadConnection ();
+				return conn.Find<T> (pk);
 			});
 		}
 		
@@ -278,10 +288,8 @@ namespace SQLite
 		{
 			return Task.Factory.StartNew (() =>
 			{
-				var conn = GetConnection ();
-				using (conn.Lock()) {
-					return conn.Get<T> (predicate);
-				}
+				var conn = GetReadConnection ();
+				return conn.Get<T> (predicate);
 			});
 		}
 		
@@ -289,10 +297,8 @@ namespace SQLite
 			where T : new ()
 		{
 			return Task.Factory.StartNew (() => {
-				var conn = GetConnection ();
-				using (conn.Lock ()) {
-					return conn.Find<T> (predicate);
-				}
+				var conn = GetReadConnection ();
+				return conn.Find<T> (predicate);
 			});
 		}
 		
@@ -306,9 +312,9 @@ namespace SQLite
 		
 		public int Execute (string query, params object[] args)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.Execute (query, args);
+				return conn.Connection.Execute (query, args);
 			}
 		}
 		
@@ -321,9 +327,9 @@ namespace SQLite
 		
 		public int InsertAll (IEnumerable items)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.InsertAll (items);
+				return conn.Connection.InsertAll (items);
 			}
 		}
 		public Task<int> InsertAllAsync (IEnumerable items, string extra)
@@ -334,9 +340,9 @@ namespace SQLite
 		}
 		public int InsertAll (IEnumerable items, string extra)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.InsertAll (items,extra);
+				return conn.Connection.InsertAll (items,extra);
 			}
 		}
 		public Task<int> InsertAllAsync (IEnumerable items, Type type)
@@ -347,9 +353,9 @@ namespace SQLite
 		}
 		public int InsertAll (IEnumerable items, Type type)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.InsertAll (items,type);
+				return conn.Connection.InsertAll (items,type);
 			}
 		}
 		
@@ -362,29 +368,29 @@ namespace SQLite
 		
 		public int InsertOrReplace (object item)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.InsertOrReplace (item);
+				return conn.Connection.InsertOrReplace (item);
 			}
 		}
 
 
 		public int InsertOrReplaceAll(IEnumerable items)
 		{
-			var conn = GetConnection();
+			var conn = GetWriteConnection ();
 			using (conn.Lock())
 			{
-				return conn.InsertOrReplaceAll(items);
+				return conn.Connection.InsertOrReplaceAll(items);
 			}
 		}
 
 
 		public int InsertOrReplaceAll(IEnumerable items, Type objType)
 		{
-			var conn = GetConnection();
+			var conn = GetWriteConnection ();
 			using (conn.Lock())
 			{
-				return conn.InsertOrReplaceAll(items,objType);
+				return conn.Connection.InsertOrReplaceAll(items,objType);
 			}
 		}
 
@@ -399,9 +405,9 @@ namespace SQLite
 		
 		public int InsertOrReplace (object item, Type type)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				return conn.InsertOrReplace (item,type);
+				return conn.Connection.InsertOrReplace (item,type);
 			}
 		}
 
@@ -409,14 +415,14 @@ namespace SQLite
 		{
 			return Task.Factory.StartNew (() =>
 			{
-				var conn = this.GetConnection ();
+				var conn = this.GetWriteConnection ();
 				using (conn.Lock()) {
-					conn.BeginTransaction ();
+					conn.Connection.BeginTransaction ();
 					try {
-						action (conn);
-						conn.Commit ();
+						action (conn.Connection);
+						conn.Connection.Commit ();
 					} catch (Exception) {
-						conn.Rollback ();
+						conn.Connection.Rollback ();
 						throw;
 					}
 				}
@@ -430,7 +436,7 @@ namespace SQLite
 			// This isn't async as the underlying connection doesn't go out to the database
 			// until the query is performed. The Async methods are on the query iteself.
 			//
-			var conn = GetConnection ();
+			var conn = GetReadConnection ();
 			return new AsyncTableQuery<T> (conn.Table<T> ());
 		}
 		
@@ -443,9 +449,9 @@ namespace SQLite
 
 		public T ExecuteScalar<T> (string sql, params object[] args)
 		{
-			var conn = GetConnection ();
+			var conn = GetWriteConnection ();
 			using (conn.Lock ()) {
-				var command = conn.CreateCommand (sql, args);
+				var command = conn.Connection.CreateCommand (sql, args);
 				return command.ExecuteScalar<T> ();
 			}
 		}
@@ -460,10 +466,8 @@ namespace SQLite
 		public List<T> Query<T> (string sql, params object[] args)
 			where T : new ()
 		{
-				var conn = GetConnection ();
-				using (conn.Lock ()) {
-					return conn.Query<T> (sql, args);
-				}
+				var conn = GetReadConnection ();
+				return conn.Query<T> (sql, args);
 		}
 	}
 	
@@ -509,45 +513,35 @@ namespace SQLite
 		public Task<List<T>> ToListAsync ()
 		{
 			return Task.Factory.StartNew (() => {
-				using (((SQLiteConnectionWithLock)_innerQuery.Connection).Lock ()) {
-					return _innerQuery.ToList ();
-				}
+				return _innerQuery.ToList ();
 			});
 		}
 		
 		public Task<int> CountAsync ()
 		{
 			return Task.Factory.StartNew (() => {
-				using (((SQLiteConnectionWithLock)_innerQuery.Connection).Lock ()) {
-					return _innerQuery.Count ();
-				}
+				return _innerQuery.Count ();
 			});
 		}
 		
 		public Task<T> ElementAtAsync (int index)
 		{
 			return Task.Factory.StartNew (() => {
-				using (((SQLiteConnectionWithLock)_innerQuery.Connection).Lock ()) {
-					return _innerQuery.ElementAt (index);
-				}
+				return _innerQuery.ElementAt (index);
 			});
 		}
 		
 		public Task<T> FirstAsync ()
 		{
 			return Task<T>.Factory.StartNew (() => {
-				using (((SQLiteConnectionWithLock)_innerQuery.Connection).Lock ()) {
-					return _innerQuery.First ();
-				}
+				return _innerQuery.First ();
 			});
 		}
 		
 		public Task<T> FirstOrDefaultAsync ()
 		{
 			return Task<T>.Factory.StartNew (() => {
-				using (((SQLiteConnectionWithLock)_innerQuery.Connection).Lock ()) {
-					return _innerQuery.FirstOrDefault ();
-				}
+				return _innerQuery.FirstOrDefault ();
 			});
 		}
 	}
@@ -561,86 +555,14 @@ namespace SQLite
 			this.Results = new Dictionary<Type, int> ();
 		}
 	}
-	
-	class SQLiteConnectionPool
-	{
-		class Entry
-		{
-			public SQLiteConnectionString ConnectionString { get; private set; }
-			public SQLiteConnectionWithLock Connection { get; private set; }
 
-			public Entry (SQLiteConnectionString connectionString, SQLiteOpenFlags openFlags)
-			{
-				ConnectionString = connectionString;
-				Connection = new SQLiteConnectionWithLock (connectionString, openFlags);
-			}
-
-			public void OnApplicationSuspended ()
-			{
-				Connection.Dispose ();
-				Connection = null;
-			}
-		}
-
-		readonly Dictionary<string, Entry> _entries = new Dictionary<string, Entry> ();
-		readonly object _entriesLock = new object ();
-
-		static readonly SQLiteConnectionPool _shared = new SQLiteConnectionPool ();
-
-		/// <summary>
-		/// Gets the singleton instance of the connection tool.
-		/// </summary>
-		public static SQLiteConnectionPool Shared {
-			get {
-				return _shared;
-			}
-		}
-
-		public SQLiteConnectionWithLock GetConnection (SQLiteConnectionString connectionString, SQLiteOpenFlags openFlags)
-		{
-			lock (_entriesLock) {
-				Entry entry;
-				string key = connectionString.ConnectionString;
-
-				if (!_entries.TryGetValue (key, out entry)) {
-					entry = new Entry (connectionString, openFlags);
-					_entries [key] = entry;
-				}
-
-				return entry.Connection;
-			}
-		}
-
-		/// <summary>
-		/// Closes all connections managed by this pool.
-		/// </summary>
-		public void Reset ()
-		{
-			lock (_entriesLock) {
-				foreach (var entry in _entries.Values) {
-					entry.OnApplicationSuspended ();
-				}
-				_entries.Clear ();
-			}
-		}
-
-		/// <summary>
-		/// Call this method when the application is suspended.
-		/// </summary>
-		/// <remarks>Behaviour here is to close any open connections.</remarks>
-		public void ApplicationSuspended ()
-		{
-			Reset ();
-		}
-	}
-
-	public class SQLiteConnectionWithLock : SQLiteConnection
+	public class SQLiteConnectionWithLock
 	{
 		readonly object _lockPoint = new object ();
-
-		public SQLiteConnectionWithLock (SQLiteConnectionString connectionString, SQLiteOpenFlags openFlags)
-			: base (connectionString.DatabasePath, openFlags, connectionString.StoreDateTimeAsTicks)
+		public SQLiteConnection Connection { get; private set; }
+		public SQLiteConnectionWithLock (SQLiteConnection connection)
 		{
+			Connection = connection;
 		}
 
 		public IDisposable Lock ()
