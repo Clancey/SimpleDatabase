@@ -62,15 +62,16 @@ namespace SimpleDatabase
 		Dictionary<Type,GroupInfo> GroupInfoDict = new Dictionary<Type, GroupInfo> ();
 		object groupLocker = new object ();
 		object memStoreLocker = new object ();
-		SQLiteAsyncConnection connection;
-		public SimpleDatabaseConnection(SQLiteAsyncConnection sqliteConnection)
+		SQLiteConnection connection;
+		public SimpleDatabaseConnection(SQLiteConnection sqliteConnection)
 		{
 			connection = sqliteConnection;
 			init ();
 		}
 		public SimpleDatabaseConnection (string databasePath)
 		{
-			connection = new SQLiteAsyncConnection (databasePath, true);
+			connection = new SQLiteConnection (databasePath,SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.FullMutex | SQLiteOpenFlags.Create, true);
+			connection.ExecuteScalar<string>("PRAGMA journal_mode=WAL");
 			init ();
 		}
 
@@ -829,28 +830,35 @@ namespace SimpleDatabase
 
 		public Task<int> InsertAllAsync (System.Collections.IEnumerable objects)
 		{
-			return connection.InsertAllAsync (objects);
+			return Task.Run(() => connection.InsertAll(objects));
 		}
 
 		public Task<int> InsertAllAsync (System.Collections.IEnumerable objects, string extra)
 		{
-			return connection.InsertAllAsync (objects,extra);
+			return Task.Run(() => connection.InsertAll(objects, extra));
 		}
 
 		public AsyncTableQuery<T> TablesAsync<T> ()
 			where T : new ()
 		{
-			return connection.Table<T> ();
+			return new AsyncTableQuery<T>(connection.Table<T>());
 		}
 
 		public Task<int> InsertAsync(object item)
 		{
-			AddObjectToDict(item);
-			return connection.InsertAsync (item);
+			return Task.Run(() =>
+			{
+				AddObjectToDict(item);
+				return connection.Insert(item);
+			});
 		}
 		public Task<int> InsertAsync(object item,string extra)
 		{
-			return connection.InsertAsync (item,extra);
+			return Task.Run(() =>
+			{
+				AddObjectToDict(item);
+				return connection.Insert(item,extra);
+			});
 		}
 	
 		
@@ -973,11 +981,7 @@ namespace SimpleDatabase
 
 		public void RunInTransaction(Action<SQLiteConnection> action)
 		{
-			var conn = connection.GetWriteConnection();
-			using (conn.Lock())
-			{
-				conn.RunInTransaction (()=>action(conn));
-			}
+			connection.RunInTransaction (()=>action(connection));
 		}
 
 		/// <summary>
@@ -1026,20 +1030,18 @@ namespace SimpleDatabase
 
 		public Task<int> ExecuteAsync(string query, params object[] args)
 		{
-			return connection.ExecuteAsync(query, args);
+			return Task.Run(()=>connection.Execute(query, args));
 		}
 
 		public List<T> Query<T> (string query, params object[] args) where T : new()
 		{
-			//lock(Locker)
-				return connection.Query<T> (query, args);
+			return connection.Query<T> (query, args);
 
 		}
 
 		public Task<List<T>> QueryAsync<T>(string query, params object[] args) where T : new()
 		{
-			//lock(Locker)
-			return connection.QueryAsync<T>(query, args);
+			return Task.Run(()=>connection.Query<T>(query, args));
 
 		}
 
@@ -1068,8 +1070,11 @@ namespace SimpleDatabase
 		
 		public Task<int> UpdateAsync (object obj)
 		{
-			AddObjectToDict(obj);
-			return connection.UpdateAsync (obj);
+			return Task.Run(() =>
+			{
+				AddObjectToDict(obj);
+				return connection.Update(obj);
+			});
 		}
 
 		public int UpdateAll (System.Collections.IEnumerable objects)
@@ -1083,9 +1088,7 @@ namespace SimpleDatabase
 		}
         public int CreateTable<T> () where T : new()
 		{
-			var t = connection.CreateTableAsync<T>().Result;
-			//t.Wait();
-			return t.Results.Count;
+			return connection.CreateTable<T>();
 		}
 		public T ExecuteScalar<T> (string query, params object[] args) where T : new()
 		{

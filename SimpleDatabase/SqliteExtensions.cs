@@ -31,6 +31,26 @@ namespace SQLite
 			}
 			return result;
 		}
+		public static CreateTablesResult CreateTables(this SQLiteConnection connection, params Type[] types)
+		{
+			//Result has internal constructor
+			CreateTablesResult result = (CreateTablesResult)Activator.CreateInstance(typeof(CreateTablesResult));
+			foreach (Type type in types)
+			{
+				try
+				{
+					int aResult = connection.CreateTable(type);
+					result.Results[type] = aResult;
+				}
+				catch (Exception)
+				{
+					Debug.WriteLine("Error creating table for {0}", type);
+					throw;
+				}
+			}
+
+			return result;
+		}
 		public static int Execute( this SQLiteAsyncConnection connection,string query, params object[] args)
 		{
 			var conn = connection.GetWriteConnection();
@@ -248,6 +268,77 @@ namespace SQLite
 			{
 				return conn.UpdateAll(items);
 			}
+		}
+
+		public static int InsertOrReplaceAll( this SQLiteConnection connection, IEnumerable objects, bool runInTransaction = true)
+		{
+			var c = 0;
+			if (runInTransaction)
+			{
+				connection.RunInTransaction(() =>
+				{
+					foreach (var r in objects)
+					{
+						c += connection.InsertOrReplace(r);
+					}
+				});
+			}
+			else
+			{
+				foreach (var r in objects)
+				{
+					c += connection.InsertOrReplace(r);
+				}
+			}
+			return c;
+		}
+
+		public static int InsertOrReplaceAll(this SQLiteConnection connection, IEnumerable objects, Type objType, bool runInTransaction = true)
+		{
+			var c = 0;
+			if (runInTransaction)
+			{
+				connection.RunInTransaction(() =>
+				{
+					foreach (var r in objects)
+					{
+						c += connection.InsertOrReplace(r, objType);
+					}
+				});
+			}
+			else
+			{
+				foreach (var r in objects)
+				{
+					c += connection.InsertOrReplace(r);
+				}
+			}
+			return c;
+		}
+
+		public static int DeleteAll(this SQLiteConnection connection, IEnumerable objects)
+		{
+			var c = 0;
+			connection.RunInTransaction(() =>
+			{
+				foreach (var r in objects)
+				{
+					c += connection.Delete(r);
+				}
+			});
+			return c;
+		}
+		public static int DeleteAll(this SQLiteConnection connection, IEnumerable objects, Type type)
+		{
+			var c = 0;
+			connection.RunInTransaction(() =>
+			{
+				foreach (var r in objects)
+				{
+					c += connection.Delete(r, type);
+				}
+			});
+			return c;
 		}
 
 	}
