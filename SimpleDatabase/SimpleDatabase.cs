@@ -7,19 +7,11 @@ using System.Collections;
 using System.Threading.Tasks;
 //using Java.Lang;
 using System.Threading;
+using System.Diagnostics;
 
 namespace SimpleDatabase
 {
 
-	public static class Tracer
-	{
-		public static void Trace(string message)
-		{
-			return;
-			var stackTrace = new System.Diagnostics.StackTrace();
-			Console.WriteLine(stackTrace.GetFrame(3).GetMethod().Name + " " + message);
-		}
-	}
 	public class ThreadLock: IDisposable{
 
 		enum Status{
@@ -28,7 +20,6 @@ namespace SimpleDatabase
 		}
 		Status status;
 		Object objLock;
-		static Thread lockOwner;
 		public static ThreadLock Lock(object objLock)
 		{         
 			return new ThreadLock(objLock);  
@@ -41,14 +32,14 @@ namespace SimpleDatabase
 			this.status = Status.Acquiring; //useful for detecting dead-lock
 			this.objLock = objLock; 
 			
-			//Console.WriteLine("Lock {0}",status);
+			//Debug.WriteLine("Lock {0}",status);
 			//collect useful information about the context such 
 			//as stacktrace, time to acquire the lock(T1)
 			Monitor.Enter(objLock); 
 
 			//lockOwner = Thread.CurrentThread;
 			this.status = Status.Acquired; 
-			//Console.WriteLine("Lock {0}",status);
+			//Debug.WriteLine("Lock {0}",status);
 			//lock is acuired, so collect acquired-time(T2)
 			//[T2-T1 = time taken to acquire lock]
 		}
@@ -57,7 +48,7 @@ namespace SimpleDatabase
 		{
 
 			Monitor.Exit(objLock);
-			//Console.WriteLine("Lock Ended");
+			//Debug.WriteLine("Lock Ended");
 			//T3: activity in a lock is over
 			//Serialize this class for doing analysis of thread-lock activity time 
 		}
@@ -373,7 +364,7 @@ namespace SimpleDatabase
 				while((group == null || group.Count <= section) && count < 5)
 				{
 					if(count > 0)
-						Console.WriteLine("Trying to fill groups: {0}",count);
+						Debug.WriteLine("Trying to fill groups: {0}",count);
 					using(ThreadLock.Lock(groupLocker)){
 						Groups.TryGetValue(tuple,out group);
 					}
@@ -435,7 +426,7 @@ namespace SimpleDatabase
 					ObjectsDict[type]= new Dictionary<object, object> ();
 				if (ObjectsDict [type].ContainsKey (primaryKey)) 
 					return (T)ObjectsDict [type] [primaryKey];
-				//Console.WriteLine("object not in objectsdict");
+				//Debug.WriteLine("object not in objectsdict");
 				var pk = GetPrimaryKeyProperty (type);
 				var query = string.Format ("select * from {0} where {1} = ? ", type.Name, pk.Name);
 
@@ -445,7 +436,7 @@ namespace SimpleDatabase
 			}
 			catch(Exception ex)
 			{
-				Console.WriteLine(ex);
+				Debug.WriteLine(ex);
 				return default(T);
 			}
 
@@ -498,7 +489,7 @@ namespace SimpleDatabase
 			}
 			catch(Exception ex)
 			{
-				Console.WriteLine (ex);
+				Debug.WriteLine (ex);
 				return default(T);
 			}
 
@@ -661,7 +652,7 @@ namespace SimpleDatabase
 				StartQueue ();
 			}
 			catch(Exception ex) {
-				Console.WriteLine (ex);
+				Debug.WriteLine (ex);
 			}
 		}
 
@@ -670,7 +661,7 @@ namespace SimpleDatabase
 			try{
 				if (group.Loaded)
 					return;
-				Console.WriteLine ("Loading items for group");
+				Debug.WriteLine ("Loading items for group");
 				var type = typeof(T);
 				string query  = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 50", group.FromString(type.Name), group.GroupBy, group.OrderByString(true), group.FilterString (false));
 				List<T> items;
@@ -697,7 +688,7 @@ namespace SimpleDatabase
 							}
 							catch(Exception ex)
 							{
-								Console.WriteLine (ex);
+								Debug.WriteLine (ex);
 							}
 						memoryGroup = MemoryStore [tuple] [group.Order];
 						}
@@ -718,11 +709,11 @@ namespace SimpleDatabase
 					if (current == group.RowCount)
 						hasMore = false;
 				}
-				Console.WriteLine ("group loaded");
+				Debug.WriteLine ("group loaded");
 				group.Loaded = true;
 			}
 			catch(Exception ex) {
-				Console.WriteLine (ex);
+				Debug.WriteLine (ex);
 			}
 		}
 
@@ -740,8 +731,7 @@ namespace SimpleDatabase
 					return;
 				queueIsRunning = true;
 			}
-			Thread thread = new Thread (runQueue);
-			thread.Start ();
+			Task.Run(() => runQueue());
 		}
 
 		void runQueue ()
@@ -761,7 +751,7 @@ namespace SimpleDatabase
 				}
 				catch(Exception ex)
 				{
-					Console.WriteLine (ex);
+					Debug.WriteLine (ex);
 					runQueue();
 					return;
 				}
@@ -850,7 +840,7 @@ namespace SimpleDatabase
 		public AsyncTableQuery<T> TablesAsync<T> ()
 			where T : new ()
 		{
-			return connection.TableAsync<T> ();
+			return connection.Table<T> ();
 		}
 
 		public Task<int> InsertAsync(object item)
@@ -986,7 +976,7 @@ namespace SimpleDatabase
 			var conn = connection.GetWriteConnection();
 			using (conn.Lock())
 			{
-				conn.Connection.RunInTransaction (()=>action(conn.Connection));
+				conn.RunInTransaction (()=>action(conn));
 			}
 		}
 
@@ -1024,10 +1014,10 @@ namespace SimpleDatabase
 		/// <returns>
 		/// The number of rows added to the table.
 		/// </returns>
-		public int Insert (object obj, string extra, Type objType)
-		{
-			return connection.Insert (obj,extra,objType);
-		}
+		//public int Insert (object obj, string extra, Type objType)
+		//{
+		//	return connection.Insert (obj,extra,objType);
+		//}
 
 		public int Execute (string query, params object[] args)
 		{
