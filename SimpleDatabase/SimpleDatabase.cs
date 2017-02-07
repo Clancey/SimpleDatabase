@@ -70,7 +70,7 @@ namespace SimpleDatabase
 		}
 		public SimpleDatabaseConnection (string databasePath)
 		{
-			connection = new SQLiteConnection (databasePath,SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.FullMutex | SQLiteOpenFlags.Create, true);
+ 			connection = new SQLiteConnection (databasePath,SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.FullMutex | SQLiteOpenFlags.Create, true);
 			connection.ExecuteScalar<string>("PRAGMA journal_mode=WAL");
 			init ();
 		}
@@ -1082,7 +1082,7 @@ namespace SimpleDatabase
 			return connection.UpdateAll (objects);
 		}
 
-		public CreateTablesResult CreateTables(params Type[] types)
+		public Dictionary<Type,int> CreateTables(params Type[] types)
 		{
 			return connection.CreateTables(types);
 		}

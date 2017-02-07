@@ -5,7 +5,7 @@ using System.Linq;
 namespace System.Reflection
 {
 	[Flags]
-	public enum BindingFlags
+	internal enum BindingFlags
 	{
 		None = 0,
 		Instance = 1,
@@ -14,7 +14,7 @@ namespace System.Reflection
 		FlattenHierarchy = 8,
 		SetProperty = 8192
 	}
-	public static class ReflectionExtensions
+	internal static class ReflectionExtensions
 	{
 		public static IEnumerable<Type> GetTypes(this Assembly assembly)
 		{

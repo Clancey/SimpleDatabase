@@ -8,16 +8,16 @@ namespace SQLite
 {
 	public static class SqliteExtensions
 	{
-		public static CreateTablesResult CreateTables(this SQLiteConnection connection, params Type[] types)
+		public static Dictionary<Type,int> CreateTables(this SQLiteConnection connection, params Type[] types)
 		{
-			//Result has internal constructor
-			CreateTablesResult result = (CreateTablesResult)Activator.CreateInstance(typeof(CreateTablesResult));
+			//CreateTablesResult Result has internal constructor
+			var results = new Dictionary<Type, int>();
 			foreach (Type type in types)
 			{
 				try
 				{
 					int aResult = connection.CreateTable(type);
-					result.Results[type] = aResult;
+					results[type] = aResult;
 				}
 				catch (Exception)
 				{
@@ -26,7 +26,7 @@ namespace SQLite
 				}
 			}
 
-			return result;
+			return results;
 		}
 
 		public static int Delete(this SQLiteConnection connection, object objectToDelete, Type type)
