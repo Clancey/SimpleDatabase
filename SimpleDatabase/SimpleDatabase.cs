@@ -7,19 +7,12 @@ using System.Collections;
 using System.Threading.Tasks;
 //using Java.Lang;
 using System.Threading;
+using System.Diagnostics;
+using System.Linq.Expressions;
 
 namespace SimpleDatabase
 {
 
-	public static class Tracer
-	{
-		public static void Trace(string message)
-		{
-			return;
-			var stackTrace = new System.Diagnostics.StackTrace();
-			Console.WriteLine(stackTrace.GetFrame(3).GetMethod().Name + " " + message);
-		}
-	}
 	public class ThreadLock: IDisposable{
 
 		enum Status{
@@ -28,7 +21,6 @@ namespace SimpleDatabase
 		}
 		Status status;
 		Object objLock;
-		static Thread lockOwner;
 		public static ThreadLock Lock(object objLock)
 		{         
 			return new ThreadLock(objLock);  
@@ -41,14 +33,14 @@ namespace SimpleDatabase
 			this.status = Status.Acquiring; //useful for detecting dead-lock
 			this.objLock = objLock; 
 			
-			//Console.WriteLine("Lock {0}",status);
+			//Debug.WriteLine("Lock {0}",status);
 			//collect useful information about the context such 
 			//as stacktrace, time to acquire the lock(T1)
 			Monitor.Enter(objLock); 
 
 			//lockOwner = Thread.CurrentThread;
 			this.status = Status.Acquired; 
-			//Console.WriteLine("Lock {0}",status);
+			//Debug.WriteLine("Lock {0}",status);
 			//lock is acuired, so collect acquired-time(T2)
 			//[T2-T1 = time taken to acquire lock]
 		}
@@ -57,7 +49,7 @@ namespace SimpleDatabase
 		{
 
 			Monitor.Exit(objLock);
-			//Console.WriteLine("Lock Ended");
+			//Debug.WriteLine("Lock Ended");
 			//T3: activity in a lock is over
 			//Serialize this class for doing analysis of thread-lock activity time 
 		}
@@ -71,15 +63,16 @@ namespace SimpleDatabase
 		Dictionary<Type,GroupInfo> GroupInfoDict = new Dictionary<Type, GroupInfo> ();
 		object groupLocker = new object ();
 		object memStoreLocker = new object ();
-		SQLiteAsyncConnection connection;
-		public SimpleDatabaseConnection(SQLiteAsyncConnection sqliteConnection)
+		SQLiteConnection connection;
+		public SimpleDatabaseConnection(SQLiteConnection sqliteConnection)
 		{
 			connection = sqliteConnection;
 			init ();
 		}
 		public SimpleDatabaseConnection (string databasePath)
 		{
-			connection = new SQLiteAsyncConnection (databasePath, true);
+ 			connection = new SQLiteConnection (databasePath,SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.FullMutex | SQLiteOpenFlags.Create, true);
+			connection.ExecuteScalar<string>("PRAGMA journal_mode=WAL");
 			init ();
 		}
 
@@ -373,7 +366,7 @@ namespace SimpleDatabase
 				while((group == null || group.Count <= section) && count < 5)
 				{
 					if(count > 0)
-						Console.WriteLine("Trying to fill groups: {0}",count);
+						Debug.WriteLine("Trying to fill groups: {0}",count);
 					using(ThreadLock.Lock(groupLocker)){
 						Groups.TryGetValue(tuple,out group);
 					}
@@ -435,7 +428,7 @@ namespace SimpleDatabase
 					ObjectsDict[type]= new Dictionary<object, object> ();
 				if (ObjectsDict [type].ContainsKey (primaryKey)) 
 					return (T)ObjectsDict [type] [primaryKey];
-				//Console.WriteLine("object not in objectsdict");
+				//Debug.WriteLine("object not in objectsdict");
 				var pk = GetPrimaryKeyProperty (type);
 				var query = string.Format ("select * from {0} where {1} = ? ", type.Name, pk.Name);
 
@@ -445,7 +438,7 @@ namespace SimpleDatabase
 			}
 			catch(Exception ex)
 			{
-				Console.WriteLine(ex);
+				Debug.WriteLine(ex);
 				return default(T);
 			}
 
@@ -498,7 +491,7 @@ namespace SimpleDatabase
 			}
 			catch(Exception ex)
 			{
-				Console.WriteLine (ex);
+				Debug.WriteLine (ex);
 				return default(T);
 			}
 
@@ -661,7 +654,7 @@ namespace SimpleDatabase
 				StartQueue ();
 			}
 			catch(Exception ex) {
-				Console.WriteLine (ex);
+				Debug.WriteLine (ex);
 			}
 		}
 
@@ -670,7 +663,7 @@ namespace SimpleDatabase
 			try{
 				if (group.Loaded)
 					return;
-				Console.WriteLine ("Loading items for group");
+				Debug.WriteLine ("Loading items for group");
 				var type = typeof(T);
 				string query  = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 50", group.FromString(type.Name), group.GroupBy, group.OrderByString(true), group.FilterString (false));
 				List<T> items;
@@ -697,7 +690,7 @@ namespace SimpleDatabase
 							}
 							catch(Exception ex)
 							{
-								Console.WriteLine (ex);
+								Debug.WriteLine (ex);
 							}
 						memoryGroup = MemoryStore [tuple] [group.Order];
 						}
@@ -718,11 +711,11 @@ namespace SimpleDatabase
 					if (current == group.RowCount)
 						hasMore = false;
 				}
-				Console.WriteLine ("group loaded");
+				Debug.WriteLine ("group loaded");
 				group.Loaded = true;
 			}
 			catch(Exception ex) {
-				Console.WriteLine (ex);
+				Debug.WriteLine (ex);
 			}
 		}
 
@@ -740,8 +733,7 @@ namespace SimpleDatabase
 					return;
 				queueIsRunning = true;
 			}
-			Thread thread = new Thread (runQueue);
-			thread.Start ();
+			Task.Run(() => runQueue());
 		}
 
 		void runQueue ()
@@ -761,7 +753,7 @@ namespace SimpleDatabase
 				}
 				catch(Exception ex)
 				{
-					Console.WriteLine (ex);
+					Debug.WriteLine (ex);
 					runQueue();
 					return;
 				}
@@ -839,28 +831,35 @@ namespace SimpleDatabase
 
 		public Task<int> InsertAllAsync (System.Collections.IEnumerable objects)
 		{
-			return connection.InsertAllAsync (objects);
+			return Task.Run(() => connection.InsertAll(objects));
 		}
 
 		public Task<int> InsertAllAsync (System.Collections.IEnumerable objects, string extra)
 		{
-			return connection.InsertAllAsync (objects,extra);
+			return Task.Run(() => connection.InsertAll(objects, extra));
 		}
 
 		public AsyncTableQuery<T> TablesAsync<T> ()
 			where T : new ()
 		{
-			return connection.TableAsync<T> ();
+			return new AsyncTableQuery<T>(connection.Table<T>());
 		}
 
 		public Task<int> InsertAsync(object item)
 		{
-			AddObjectToDict(item);
-			return connection.InsertAsync (item);
+			return Task.Run(() =>
+			{
+				AddObjectToDict(item);
+				return connection.Insert(item);
+			});
 		}
 		public Task<int> InsertAsync(object item,string extra)
 		{
-			return connection.InsertAsync (item,extra);
+			return Task.Run(() =>
+			{
+				AddObjectToDict(item);
+				return connection.Insert(item,extra);
+			});
 		}
 	
 		
@@ -983,11 +982,7 @@ namespace SimpleDatabase
 
 		public void RunInTransaction(Action<SQLiteConnection> action)
 		{
-			var conn = connection.GetWriteConnection();
-			using (conn.Lock())
-			{
-				conn.Connection.RunInTransaction (()=>action(conn.Connection));
-			}
+			connection.RunInTransaction (()=>action(connection));
 		}
 
 		/// <summary>
@@ -1024,10 +1019,10 @@ namespace SimpleDatabase
 		/// <returns>
 		/// The number of rows added to the table.
 		/// </returns>
-		public int Insert (object obj, string extra, Type objType)
-		{
-			return connection.Insert (obj,extra,objType);
-		}
+		//public int Insert (object obj, string extra, Type objType)
+		//{
+		//	return connection.Insert (obj,extra,objType);
+		//}
 
 		public int Execute (string query, params object[] args)
 		{
@@ -1036,20 +1031,18 @@ namespace SimpleDatabase
 
 		public Task<int> ExecuteAsync(string query, params object[] args)
 		{
-			return connection.ExecuteAsync(query, args);
+			return Task.Run(()=>connection.Execute(query, args));
 		}
 
 		public List<T> Query<T> (string query, params object[] args) where T : new()
 		{
-			//lock(Locker)
-				return connection.Query<T> (query, args);
+			return connection.Query<T> (query, args);
 
 		}
 
 		public Task<List<T>> QueryAsync<T>(string query, params object[] args) where T : new()
 		{
-			//lock(Locker)
-			return connection.QueryAsync<T>(query, args);
+			return Task.Run(()=>connection.Query<T>(query, args));
 
 		}
 
@@ -1078,8 +1071,11 @@ namespace SimpleDatabase
 		
 		public Task<int> UpdateAsync (object obj)
 		{
-			AddObjectToDict(obj);
-			return connection.UpdateAsync (obj);
+			return Task.Run(() =>
+			{
+				AddObjectToDict(obj);
+				return connection.Update(obj);
+			});
 		}
 
 		public int UpdateAll (System.Collections.IEnumerable objects)
@@ -1087,15 +1083,13 @@ namespace SimpleDatabase
 			return connection.UpdateAll (objects);
 		}
 
-		public CreateTablesResult CreateTables(params Type[] types)
+		public Dictionary<Type,int> CreateTables(params Type[] types)
 		{
 			return connection.CreateTables(types);
 		}
         public int CreateTable<T> () where T : new()
 		{
-			var t = connection.CreateTableAsync<T>().Result;
-			//t.Wait();
-			return t.Results.Count;
+			return connection.CreateTable<T>();
 		}
 		public T ExecuteScalar<T> (string query, params object[] args) where T : new()
 		{
@@ -1103,7 +1097,81 @@ namespace SimpleDatabase
 		}
 
 		#endregion
+		public class AsyncTableQuery<T>
+		where T : new()
+		{
+			TableQuery<T> _innerQuery;
 
+			public AsyncTableQuery(TableQuery<T> innerQuery)
+			{
+				_innerQuery = innerQuery;
+			}
+
+			public AsyncTableQuery<T> Where(Expression<Func<T, bool>> predExpr)
+			{
+				return new AsyncTableQuery<T>(_innerQuery.Where(predExpr));
+			}
+
+			public AsyncTableQuery<T> Skip(int n)
+			{
+				return new AsyncTableQuery<T>(_innerQuery.Skip(n));
+			}
+
+			public AsyncTableQuery<T> Take(int n)
+			{
+				return new AsyncTableQuery<T>(_innerQuery.Take(n));
+			}
+
+			public AsyncTableQuery<T> OrderBy<U>(Expression<Func<T, U>> orderExpr)
+			{
+				return new AsyncTableQuery<T>(_innerQuery.OrderBy<U>(orderExpr));
+			}
+
+			public AsyncTableQuery<T> OrderByDescending<U>(Expression<Func<T, U>> orderExpr)
+			{
+				return new AsyncTableQuery<T>(_innerQuery.OrderByDescending<U>(orderExpr));
+			}
+
+			public Task<List<T>> ToListAsync()
+			{
+				return Task.Factory.StartNew(() =>
+				{
+					return _innerQuery.ToList();
+				});
+			}
+
+			public Task<int> CountAsync()
+			{
+				return Task.Factory.StartNew(() =>
+				{
+					return _innerQuery.Count();
+				});
+			}
+
+			public Task<T> ElementAtAsync(int index)
+			{
+				return Task.Factory.StartNew(() =>
+				{
+					return _innerQuery.ElementAt(index);
+				});
+			}
+
+			public Task<T> FirstAsync()
+			{
+				return Task<T>.Factory.StartNew(() =>
+				{
+					return _innerQuery.First();
+				});
+			}
+
+			public Task<T> FirstOrDefaultAsync()
+			{
+				return Task<T>.Factory.StartNew(() =>
+				{
+					return _innerQuery.FirstOrDefault();
+				});
+			}
+		}
 	}
 
 	[AttributeUsage (AttributeTargets.Property)]
