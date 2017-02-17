@@ -1052,7 +1052,7 @@ namespace SimpleDatabase
 			{
 				foreach (var item in objects)
 				{
-					var i = connection.Insert(item);
+					var i = connection.InsertOrReplace(item);
 					if (i > 0)
 					{
 						AddObjectToDict(item);
