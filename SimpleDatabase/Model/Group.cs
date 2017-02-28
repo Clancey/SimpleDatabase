@@ -138,7 +138,7 @@ namespace SimpleDatabase
 
 		public static Tuple<string, object[]> ConvertSqlFromNamed(string sql, Dictionary<string, object> namedParameters, Dictionary<string,object> injectedParams = null)
 		{
-			var foundParamters = sql.Split(' ').Where(x => x.StartsWith("@")).Select(x => x.Trim()).ToList();
+			var foundParamters = sql.Split(' ').Where(x => x.StartsWith("@")).Select(x => x.Trim().TrimEnd(')')).ToList();
 			var hasQuestion = sql.Contains("?");
 			if (hasQuestion)
 			{
