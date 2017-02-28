@@ -8,14 +8,30 @@ namespace Sample
 {
 	public class SimpleDatabaseSource<T> : IList, INotifyCollectionChanged where T : new()
 	{
+		public bool IsGrouped { get; set; } = true;
+		public SimpleDatabaseSource(SimpleDatabaseConnection connection)
+		{
+			Database = connection;
+		}
 		public object this[int index]
 		{
 			get
 			{
-				return new GroupedList<T>(Database,GroupInfo, index)
+				try
 				{
-					Display = Database?.SectionHeader<T>(GroupInfo,index) ?? "",
-				};
+					Debug.WriteLine($"Loading {index}");
+					if (IsGrouped)
+						return new GroupedList<T>(Database, GroupInfo, index)
+						{
+							Display = Database?.SectionHeader<T>(GroupInfo, index) ?? "",
+						};
+					return Database != null ? Database.ObjectForRow<T>(GroupInfo,0,index) : new T();
+				}
+				catch (Exception ex)
+				{
+					Debug.WriteLine(ex);
+					return new T();
+				}
 			}
 
 			set
@@ -46,7 +62,10 @@ namespace Sample
 		{
 			get
 			{
-				return Database?.NumberOfSections<T>(GroupInfo) ?? 0;
+				var c = (IsGrouped ? Database?.NumberOfSections<T>(GroupInfo) : Database?.RowsInSection<T>(GroupInfo, 0)) ?? 0;
+				if (c == 0)
+					Console.WriteLine("what?");
+				return c;
 			}
 		}
 
@@ -196,7 +215,17 @@ namespace Sample
 		{
 			get
 			{
-				return Database.ObjectForRow<T>(GroupInfo, Section, index);
+				try
+				{
+					Debug.WriteLine($"Loading {Section}:{index}");
+					var item =  Database.ObjectForRow<T>(GroupInfo, Section, index);
+					return item;
+				}
+				catch (Exception ex)
+				{
+					Debug.WriteLine(ex);
+					return new T();
+				}
 			}
 
 			set
