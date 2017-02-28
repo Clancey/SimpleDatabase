@@ -2,14 +2,14 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
     <metadata>
         <id>Clancey.SimpleDatabase</id>
-        <version>1.0.2</version>
+        <version>1.0.4</version>
         <authors>Clancey</authors>
         <licenseUrl>https://github.com/Clancey/SimpleDatabase/blob/master/LICENSE</licenseUrl>
         <projectUrl>https://github.com/Clancey/SimpleDatabase</projectUrl>
         <requireLicenseAcceptance>false</requireLicenseAcceptance>
         <description>The fastest way to group large data sets for mobile</description>
         <summary>SimpleDatabase is built on top of Sqlite-Net.  It gives you everything you need to build fast grouped TableViews in Xamarin</summary>
-        <releaseNotes>Now depends on Sqlite-Net PCL version. This lets it work on More Platforms!!!</releaseNotes>
+        <releaseNotes>Fixed InsertOrReplaceAll.</releaseNotes>
         <copyright>James Clancey</copyright>
 		 <dependencies>
 		  <group>
@@ -24,5 +24,6 @@
     <files>
         <file src="SimpleDatabase\bin\Release\SimpleDatabase.dll" target="lib/portable-net45+wp8+wpa81+win8+MonoAndroid10+MonoTouch10+Xamarin.iOS10" />
         <file src="SimpleDatabase\bin\Release\SimpleDatabase.dll" target="lib/netstandard1.1" />
+        <file src="SimpleDatabase.iOS\bin\Release\SimpleDatabase.dll" target="lib\Xamarin.iOS10\SimpleDatabase.dll" />
     </files>
 </package>

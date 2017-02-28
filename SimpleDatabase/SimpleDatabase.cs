@@ -63,6 +63,7 @@ namespace SimpleDatabase
 		Dictionary<Type,GroupInfo> GroupInfoDict = new Dictionary<Type, GroupInfo> ();
 		object groupLocker = new object ();
 		object memStoreLocker = new object ();
+		object writeLocker = new object();
 		SQLiteConnection connection;
 		public SimpleDatabaseConnection(SQLiteConnection sqliteConnection)
 		{
@@ -836,20 +837,23 @@ namespace SimpleDatabase
 		{
 			var c = 0;
 			var types = new HashSet<Type>();
-			connection.RunInTransaction(() =>
+			using (new ThreadLock(writeLocker))
 			{
-				foreach (var item in objects)
+				connection.RunInTransaction(() =>
 				{
-					var i = connection.Insert(item);
-					if (i > 0)
+					foreach (var item in objects)
 					{
-						AddObjectToDict(item);
-						types.Add(item.GetType());
-						c += i;
-					}
+						var i = connection.Insert(item);
+						if (i > 0)
+						{
+							AddObjectToDict(item);
+							types.Add(item.GetType());
+							c += i;
+						}
 
-				}
-			});
+					}
+				});
+			}
 			if (c > 0)
 				ClearMemory(types.ToArray());
 			return c;
@@ -871,19 +875,22 @@ namespace SimpleDatabase
 		{
 			var c = 0;
 			var types = new HashSet<Type>();
-			connection.RunInTransaction(() =>
+			using (new ThreadLock(writeLocker))
 			{
-				foreach (var item in objects)
+				connection.RunInTransaction(() =>
 				{
-					var i = connection.Insert(item,extra);
-					if (i > 0)
+					foreach (var item in objects)
 					{
-						AddObjectToDict(item);
-						types.Add(item.GetType());
-						c += i;
+						var i = connection.Insert(item, extra);
+						if (i > 0)
+						{
+							AddObjectToDict(item);
+							types.Add(item.GetType());
+							c += i;
+						}
 					}
-				}
-			});
+				});
+			}
 			if (c > 0)
 				ClearMemory(types.ToArray());
 			return c;
@@ -930,18 +937,21 @@ namespace SimpleDatabase
 		public int InsertAll (System.Collections.IEnumerable objects, Type objType)
 		{
 			var c = 0;
-			connection.RunInTransaction(() =>
+			using (new ThreadLock(writeLocker))
 			{
-				foreach (var item in objects)
+				connection.RunInTransaction(() =>
 				{
-					var i = connection.Insert(item, objType);
-					if (i > 0)
+					foreach (var item in objects)
 					{
-						AddObjectToDict(item);
-						c += i;
+						var i = connection.Insert(item, objType);
+						if (i > 0)
+						{
+							AddObjectToDict(item);
+							c += i;
+						}
 					}
-				}
-			});
+				});
+			}
 			if (c > 0)
 				ClearMemory(objType);
 			return c;
@@ -1048,19 +1058,22 @@ namespace SimpleDatabase
 		{
 			var c = 0;
 			var types = new HashSet<Type>();
-			connection.RunInTransaction(() =>
+			using (new ThreadLock(writeLocker))
 			{
-				foreach (var item in objects)
+				connection.RunInTransaction(() =>
 				{
-					var i = connection.Insert(item);
-					if (i > 0)
+					foreach (var item in objects)
 					{
-						AddObjectToDict(item);
-						types.Add(item.GetType());
-						c += i;
+						var i = connection.InsertOrReplace(item);
+						if (i > 0)
+						{
+							AddObjectToDict(item);
+							types.Add(item.GetType());
+							c += i;
+						}
 					}
-				}
-			});
+				});
+			}
 			if (c > 0)
 				ClearMemory(types.ToArray());
 			return c;
@@ -1082,18 +1095,21 @@ namespace SimpleDatabase
 		public int InsertOrReplaceAll(System.Collections.IEnumerable objects, Type objType)
 		{
 			var c = 0;
-			connection.RunInTransaction(() =>
+			using (new ThreadLock(writeLocker))
 			{
-				foreach (var item in objects)
+				connection.RunInTransaction(() =>
 				{
-					var i = connection.InsertOrReplace(item, objType);
-					if (i > 0)
+					foreach (var item in objects)
 					{
-						AddObjectToDict(item);
-						c += i;
+						var i = connection.InsertOrReplace(item, objType);
+						if (i > 0)
+						{
+							AddObjectToDict(item);
+							c += i;
+						}
 					}
-				}
-			});
+				});
+			}
 			if (c > 0)
 				ClearMemory(objType);
 			return c;
@@ -1101,7 +1117,10 @@ namespace SimpleDatabase
 
 		public void RunInTransaction(Action<SQLiteConnection> action)
 		{
-			connection.RunInTransaction (()=>action(connection));
+			using (new ThreadLock(writeLocker))
+			{
+				connection.RunInTransaction(() => action(connection));
+			}
 		}
 
 		/// <summary>
@@ -1186,19 +1205,22 @@ namespace SimpleDatabase
 		{
 			var c = 0;
 			var types = new HashSet<Type>();
-			connection.RunInTransaction(() =>
+			using (new ThreadLock(writeLocker))
 			{
-				foreach (var item in objects)
+				connection.RunInTransaction(() =>
 				{
-					var i = connection.Delete(item);
-					if (i > 0)
+					foreach (var item in objects)
 					{
-						RemoveObjectFromDict(item);
-						types.Add(item.GetType());
-						c += i;
+						var i = connection.Delete(item);
+						if (i > 0)
+						{
+							RemoveObjectFromDict(item);
+							types.Add(item.GetType());
+							c += i;
+						}
 					}
-				}
-			});
+				});
+			}
 			if (c > 0)
 				ClearMemory(types.ToArray());
 			return c;
@@ -1208,18 +1230,21 @@ namespace SimpleDatabase
 		public int DeleteAll (System.Collections.IEnumerable objects,Type type)
 		{
 			var c = 0;
-			connection.RunInTransaction(() =>
+			using (new ThreadLock(writeLocker))
 			{
-				foreach (var item in objects)
+				connection.RunInTransaction(() =>
 				{
-					var i = connection.Delete(item,type);
-					if (i > 0)
+					foreach (var item in objects)
 					{
-						RemoveObjectFromDict(item);
-						c += i;
+						var i = connection.Delete(item, type);
+						if (i > 0)
+						{
+							RemoveObjectFromDict(item);
+							c += i;
+						}
 					}
-				}
-			});
+				});
+			}
 			if (c > 0)
 				ClearMemory(type);
 			return c;
@@ -1250,19 +1275,22 @@ namespace SimpleDatabase
 		{
 			var c = 0;
 			var types = new HashSet<Type>();
-			connection.RunInTransaction(() =>
+			using (new ThreadLock(writeLocker))
 			{
-				foreach (var item in objects)
+				connection.RunInTransaction(() =>
 				{
-					var i = connection.Update(item);
-					if (i > 0)
+					foreach (var item in objects)
 					{
-						AddObjectToDict(item);
-						types.Add(item.GetType());
-						c += i;
+						var i = connection.Update(item);
+						if (i > 0)
+						{
+							AddObjectToDict(item);
+							types.Add(item.GetType());
+							c += i;
+						}
 					}
-				}
-			});
+				});
+			}
 			if (c > 0)
 				ClearMemory(types.ToArray());
 			return c;
