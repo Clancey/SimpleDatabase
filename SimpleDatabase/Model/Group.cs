@@ -55,7 +55,7 @@ namespace SimpleDatabase
 
 		public string FromString(string table)
 		{
-			return string.Format (" {0} {1} ", table, From);
+			return $" {table} {From} ";
 		}
 
 		public string OrderByString(bool includeOrerBy = true)
