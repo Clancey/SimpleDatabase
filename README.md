@@ -53,9 +53,10 @@ GroupInfo
 Sometimes you need to filter or Add dynamically compose a query. Simple Auth uses named parameters
 
 ```cs
+var artist = new { Id = "Foo"};
 var group = Database.Main.GetGroupInfo<Song>().Clone();
 group.Filter = "ArtistId = @ArtistId";
-group.Params["@ArtistId"] = value.Id;
+group.Params["@ArtistId"] = artist.Id;
 
 Database.Main.RowsInSection<Song>(group , section);
 
