@@ -160,11 +160,9 @@ namespace SimpleDatabase
 			if (string.IsNullOrEmpty (groupInfo.GroupBy))
 			groups = new List<SimpleDatabaseGroup> (){new SimpleDatabaseGroup{GroupString = ""}};
 			else {
-				var query = string.Format ("select distinct {1} as GroupString from {0} {3} {2} {4}", groupInfo.FromString(type.Name), groupInfo.GroupBy, groupInfo.OrderByString(true), groupInfo.FilterString(true),groupInfo.LimitString());
+				var query = $"select distinct {groupInfo.GroupBy} as GroupString from {groupInfo.FromString(type.Name)} {groupInfo.FilterString(true)} {groupInfo.OrderByString(true)} {groupInfo.LimitString()}";
 				groups = connection.Query<SimpleDatabaseGroup> (query,groupInfo.Params).ToList ();
 			}
-			//var deleteQuery = string.Format ("delete from SimpleDatabaseGroup where ClassName = ? and GroupBy = ? and OrderBy = ? and Filter = ?");
-			//int deleted = connection.Execute (deleteQuery, type.Name, groupInfo.GroupBy, groupInfo.OrderBy, groupInfo.Filter);
 
 			for (int i = 0; i < groups.Count(); i++) {
 				var group = groups [i];
@@ -174,10 +172,10 @@ namespace SimpleDatabase
 				group.OrderBy = groupInfo.OrderBy ?? "";
 				group.Order = i;
 				string rowQuery;
-				if (string.IsNullOrEmpty (groupInfo.GroupBy))
-					rowQuery = string.Format ("select count(*) from {0} {1}", groupInfo.FromString(type.Name), groupInfo.FilterString (true));
+				if (string.IsNullOrEmpty(groupInfo.GroupBy))
+					rowQuery = $"select count(*) from {groupInfo.FromString(type.Name)} {groupInfo.FilterString(true)}";
 				else
-					rowQuery = string.Format ("select count(*) from {0} where {1} = ? {2}", groupInfo.FromString(type.Name), groupInfo.GroupBy, groupInfo.FilterString (false));
+					rowQuery = $"select count(*) from {groupInfo.FromString(type.Name)} where {groupInfo.GroupBy} = ? {groupInfo.FilterString(false)}";
 				//lock(Locker){
 				if(!string.IsNullOrEmpty(groupInfo.Filter) && groupInfo.Filter.Contains("?") && string.IsNullOrEmpty(group.GroupString))
 					group.RowCount = connection.ExecuteScalar<int> (rowQuery,groupInfo.Params);
@@ -439,7 +437,7 @@ namespace SimpleDatabase
 					return (T)ObjectsDict [type] [primaryKey];
 				//Debug.WriteLine("object not in objectsdict");
 				var pk = GetPrimaryKeyProperty (type);
-				var query = string.Format ("select * from {0} where {1} = ? ", type.Name, pk.Name);
+				var query = $"select * from {type.Name} where {pk.Name} = ? ";
 
 				T item = connection.Query<T> (query, primaryKey).FirstOrDefault ();
 
@@ -456,16 +454,15 @@ namespace SimpleDatabase
 		private T getObject<T> (GroupInfo info, int section, int row) where T : new()
 		{
 			try{
-			T item;
-			var t = typeof(T);
-			var group = GetGroup<T> (info, section);
+				T item;
+				var t = typeof(T);
+				var group = GetGroup<T> (info, section);
 
-			string query;
-			if (string.IsNullOrEmpty (info.GroupBy))
-					query = string.Format ("select * from {0} {1} {2} LIMIT {3}, 1", info.FromString(t.Name), info.FilterString (true), info.OrderByString(true), row);
-			else
-					query = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 1", info.FromString(t.Name), info.GroupBy, info.OrderByString(true), info.FilterString (false));
-			
+				string query;
+				if (string.IsNullOrEmpty(info.GroupBy))
+					query = $"select * from {info.FromString(t.Name)} {info.FilterString(true)} {info.OrderByString(true)} LIMIT {row}, 1";
+				else
+					query = $"select * from {info.FromString(t.Name)} where {info.GroupBy} = ? {info.FilterString(false)} {info.OrderByString(true)} LIMIT ? , 1";
 				var parameters = new List<object>();
 				if(!string.IsNullOrWhiteSpace(group.GroupString))
 					parameters.Add(group.GroupString);
@@ -481,22 +478,22 @@ namespace SimpleDatabase
 				//else
 					item = connection.Query<T> (query,parameters.ToArray()).FirstOrDefault ();
 
-			if (item == null)
-				return new T ();
-				
-			var tuple = new Tuple<Type,string> (t, info.ToString());
-			using(ThreadLock.Lock (memStoreLocker)) {
-				if (!MemoryStore.ContainsKey (tuple))
-					MemoryStore.Add (tuple, new Dictionary<int, Dictionary<int, object>> ());
-				var groups = MemoryStore [tuple];
-				if (!groups.ContainsKey (section))
-					groups.Add (section, new Dictionary<int, object> ());
-				if (!groups [section].ContainsKey (row))
-					groups [section].Add (row, item);
-				else
-					groups [section] [row] = item;
-				return GetIfCached(item);
-			}
+				if (item == null)
+					return new T ();
+					
+				var tuple = new Tuple<Type,string> (t, info.ToString());
+				using(ThreadLock.Lock (memStoreLocker)) {
+					if (!MemoryStore.ContainsKey (tuple))
+						MemoryStore.Add (tuple, new Dictionary<int, Dictionary<int, object>> ());
+					var groups = MemoryStore [tuple];
+					if (!groups.ContainsKey (section))
+						groups.Add (section, new Dictionary<int, object> ());
+					if (!groups [section].ContainsKey (row))
+						groups [section].Add (row, item);
+					else
+						groups [section] [row] = item;
+					return GetIfCached(item);
+				}
 			}
 			catch(Exception ex)
 			{
@@ -578,7 +575,7 @@ namespace SimpleDatabase
 				info = GetGroupInfo<T> ();
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
-			string query =  "Select count(*) from " + info.FromString(t.Name) + " " + filterString;
+			string query = $"Select count(*) from {info.FromString(t.Name)} {filterString}";
 
 			int count = connection.ExecuteScalar<int> (query);
 
@@ -597,7 +594,7 @@ namespace SimpleDatabase
 				info = GetGroupInfo<T> ();
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
-			string query =  string.Format("Select distinct count({0}) from ",column) + info.FromString(t.Name) + " " + filterString + info.LimitString();
+			string query =  $"Select distinct count({column}) from {info.FromString(t.Name)} {filterString} {info.LimitString()}";
 
 			int count = connection.ExecuteScalar<int> (query,info.Params);
 			
@@ -614,7 +611,7 @@ namespace SimpleDatabase
 			if (info == null)
 				info = GetGroupInfo<T>();
 			var filterString = info.FilterString (true);
-			string query = string.Format("select * from {0} {1} {2} LIMIT {3}, 1", info.FromString(t.Name), filterString, info.OrderByString(true), index);
+			var query = $"select * from {info.FromString(t.Name)} {filterString} {info.OrderByString(true)} LIMIT {index}, 1";
 
 			item = connection.Query<T> (query).FirstOrDefault ();
 
@@ -628,7 +625,7 @@ namespace SimpleDatabase
 				info = GetGroupInfo<T> ();
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
-			string query =  "Select * from " + info.FromString(t.Name) + " " + filterString  + info.LimitString();
+			string query = $"Select * from {info.FromString(t.Name)} {filterString} {info.LimitString()}";
 			return connection.Query<T> (query).ToList();
 
 		}
@@ -692,14 +689,14 @@ namespace SimpleDatabase
 					return;
 				Debug.WriteLine ("Loading items for group");
 				var type = typeof(T);
-				string query  = string.Format ("select * from {0} where {1} = ? {3} {2} LIMIT ? , 50", group.FromString(type.Name), group.GroupBy, group.OrderByString(true), group.FilterString (false));
+				string query  = $"select * from {group.FromString(type.Name)} where {group.GroupBy} = ? {group.FilterString(false)} {group.OrderByString(true)} LIMIT ? , 50";
 				List<T> items;
 				int current = 0;
 				bool hasMore = true;
 				while (hasMore) {
-					
-					if (string.IsNullOrEmpty (group.GroupBy))
-						query = string.Format ("select * from {0} {1} {2} LIMIT {3}, 50", group.FromString(type.Name), group.FilterString (true), group.OrderByString(true), current);
+
+					if (string.IsNullOrEmpty(group.GroupBy))
+						query = $"select * from {group.FromString(type.Name)} {group.FilterString(true)} {group.OrderByString(true)} LIMIT {current}, 50";
 
 					items = connection.Query<T> (query, group.GroupString, current).ToList ();
 
