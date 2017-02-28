@@ -92,14 +92,14 @@ namespace SimpleDatabase
 
 		public override bool Equals (object obj)
 		{
-			if (obj is GroupInfo) {
-				var obj2 = ((GroupInfo)obj);
-				var isTrue = this.GroupBy == obj2.GroupBy && this.Filter == obj2.Filter && this.OrderBy == obj2.OrderBy;
-				return isTrue;
-			}
-			return false;
+			return obj.ToString() == this.ToString();
 		}
-		
+
+		public override int GetHashCode()
+		{
+			return this.ToString().GetHashCode();
+		}
+
 		public static bool operator == (GroupInfo x, GroupInfo y)
 		{
 			if (object.ReferenceEquals (x, y)) {
@@ -125,9 +125,10 @@ namespace SimpleDatabase
 			}
 			return !x.Equals (y);
 		}
+		
 		public override string ToString ()
 		{
-			return string.Format ("[GroupInfo: GroupBy={0}, OrderBy={1}, Filter={2}, From={3} ,Params{4}]", GroupBy, OrderBy, Filter,From,string.Join(",",Params));
+			return $"[GroupInfo: GroupBy={GroupBy}, OrderBy={OrderBy}, Filter={Filter}, From={From} ,Params{string.Join(",", Params)}]";
 		}
 
 		public Tuple<string, object[]> ConvertSqlFromNamed(string sql, Dictionary<string,object> injectedParams = null)
