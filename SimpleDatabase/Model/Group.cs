@@ -131,7 +131,12 @@ namespace SimpleDatabase
 			return $"[GroupInfo: GroupBy={GroupBy}, OrderBy={OrderBy}, Filter={Filter}, From={From} ,Params{string.Join(",", Params)}]";
 		}
 
-		public Tuple<string, object[]> ConvertSqlFromNamed(string sql, Dictionary<string,object> injectedParams = null)
+		public Tuple<string, object[]> ConvertSqlFromNamed(string sql, Dictionary<string, object> injectedParams = null)
+		{
+			return ConvertSqlFromNamed(sql,Params,injectedParams);
+		}
+
+		public static Tuple<string, object[]> ConvertSqlFromNamed(string sql, Dictionary<string, object> namedParameters, Dictionary<string,object> injectedParams = null)
 		{
 			var foundParamters = sql.Split(' ').Where(x => x.StartsWith("@")).Select(x => x.Trim()).ToList();
 			var hasQuestion = sql.Contains("?");
@@ -146,7 +151,7 @@ namespace SimpleDatabase
 			{
 				object value;
 				returnSql = returnSql.Replace(param, "?");
-				if (!Params.TryGetValue(param, out value) && !(injectedParams?.TryGetValue(param, out value) ?? false))
+				if (!namedParameters.TryGetValue(param, out value) && !(injectedParams?.TryGetValue(param, out value) ?? false))
 					throw new Exception($"\"{param}\" was not found in the Named Parameters");
 				parameterValues.Add(value);
 			}
