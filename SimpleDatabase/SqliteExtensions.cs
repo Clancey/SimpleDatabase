@@ -37,7 +37,7 @@ namespace SQLite
 			{
 				throw new NotSupportedException("Cannot delete " + map.TableName + ": it has no PK");
 			}
-			var q = string.Format("delete from \"{0}\" where \"{1}\" = ?", map.TableName, pk.Name);
+			var q = $"delete from \"{map.TableName}\" where \"{pk.Name}\" = ?";
 			var count = connection.Execute(q, pk.GetValue(objectToDelete));
 
 			return count;
