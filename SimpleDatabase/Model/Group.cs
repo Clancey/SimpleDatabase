@@ -1,6 +1,7 @@
 using System;
 using SQLite;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace SimpleDatabase
 {
@@ -23,7 +24,7 @@ namespace SimpleDatabase
 		}
 		[Indexed]
 		public string GroupBy {get;set;}
-		public object Params { get; set;}
+		public Dictionary<string, object> Params { get; set;}= new Dictionary<string, object>();
 		public bool OrderByDesc { get; set;}
 		public string GroupString {get;set;}
 		public bool GroupOrderByDesc { get; set;}
@@ -38,7 +39,8 @@ namespace SimpleDatabase
 
 		public GroupInfo Clone ()
 		{
-			return new GroupInfo{
+			return new GroupInfo
+			{
 				GroupBy = this.GroupBy,
 				OrderByDesc = this.OrderByDesc,
 				GroupString = this.GroupString,
@@ -47,7 +49,7 @@ namespace SimpleDatabase
 				Filter = this.Filter,
 				From = this.From,
 				Limit = this.Limit,
-				Params = this.Params,
+				Params = Params?.ToDictionary(x => x.Key, x => x.Value) ?? new Dictionary<string, object>(),
 			};
 		}
 
@@ -125,7 +127,29 @@ namespace SimpleDatabase
 		}
 		public override string ToString ()
 		{
-			return string.Format ("[GroupInfo: GroupBy={0}, OrderBy={1}, Filter={2}, From={3} ,Params{4}]", GroupBy, OrderBy, Filter,From,Params);
+			return string.Format ("[GroupInfo: GroupBy={0}, OrderBy={1}, Filter={2}, From={3} ,Params{4}]", GroupBy, OrderBy, Filter,From,string.Join(",",Params));
+		}
+
+		public Tuple<string, object[]> ConvertSqlFromNamed(string sql, Dictionary<string,object> injectedParams = null)
+		{
+			var foundParamters = sql.Split(' ').Where(x => x.StartsWith("@")).Select(x => x.Trim()).ToList();
+			var hasQuestion = sql.Contains("?");
+			if (hasQuestion)
+			{
+				throw new Exception("Please covert to named parameters");
+			}
+
+			string returnSql = sql;
+			List<object> parameterValues = new List<object>();
+			foreach (var param in foundParamters)
+			{
+				object value;
+				returnSql = returnSql.Replace(param, "?");
+				if (!Params.TryGetValue(param, out value) && !(injectedParams?.TryGetValue(param, out value) ?? false))
+					throw new Exception($"\"{param}\" was not found in the Named Parameters");
+				parameterValues.Add(value);
+			}
+			return new Tuple<string, object[]>(returnSql, parameterValues.ToArray());
 		}
 
 	}

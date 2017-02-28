@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample.Droid", "Samples\Dro
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleDatabase", "SimpleDatabase\SimpleDatabase.csproj", "{4FE40048-B716-42ED-9E26-C114689BAAFD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleDatabase.iOS", "SimpleDatabase.iOS\SimpleDatabase.iOS.csproj", "{E8B052D6-9C21-4B3F-9520-29D7B38513C5}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		SimpleDatabase\SimpleDatabase.Shared.projitems*{24b10281-9934-466b-bd72-7e439e72288d}*SharedItemsImports = 13
@@ -66,6 +68,18 @@ Global
 		{4FE40048-B716-42ED-9E26-C114689BAAFD}.Release|iPhoneSimulator.Build.0 = Release|Any CPU
 		{4FE40048-B716-42ED-9E26-C114689BAAFD}.Debug|iPhone.ActiveCfg = Debug|Any CPU
 		{4FE40048-B716-42ED-9E26-C114689BAAFD}.Debug|iPhone.Build.0 = Debug|Any CPU
+		{E8B052D6-9C21-4B3F-9520-29D7B38513C5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E8B052D6-9C21-4B3F-9520-29D7B38513C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E8B052D6-9C21-4B3F-9520-29D7B38513C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E8B052D6-9C21-4B3F-9520-29D7B38513C5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E8B052D6-9C21-4B3F-9520-29D7B38513C5}.Debug|iPhoneSimulator.ActiveCfg = Debug|Any CPU
+		{E8B052D6-9C21-4B3F-9520-29D7B38513C5}.Debug|iPhoneSimulator.Build.0 = Debug|Any CPU
+		{E8B052D6-9C21-4B3F-9520-29D7B38513C5}.Release|iPhone.ActiveCfg = Release|Any CPU
+		{E8B052D6-9C21-4B3F-9520-29D7B38513C5}.Release|iPhone.Build.0 = Release|Any CPU
+		{E8B052D6-9C21-4B3F-9520-29D7B38513C5}.Release|iPhoneSimulator.ActiveCfg = Release|Any CPU
+		{E8B052D6-9C21-4B3F-9520-29D7B38513C5}.Release|iPhoneSimulator.Build.0 = Release|Any CPU
+		{E8B052D6-9C21-4B3F-9520-29D7B38513C5}.Debug|iPhone.ActiveCfg = Debug|Any CPU
+		{E8B052D6-9C21-4B3F-9520-29D7B38513C5}.Debug|iPhone.Build.0 = Debug|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -78,5 +92,6 @@ Global
 		{C8231E82-96F8-4889-8BDD-FF9C437951B6} = {FAB3BE12-DCAA-4C6A-BA16-5CA6F56C368B}
 		{A8B989BF-FB0A-40E0-9540-0700C1585C64} = {FAB3BE12-DCAA-4C6A-BA16-5CA6F56C368B}
 		{4FE40048-B716-42ED-9E26-C114689BAAFD} = {FB300C5C-A6EB-4BE4-A32D-7FE553C71A5A}
+		{E8B052D6-9C21-4B3F-9520-29D7B38513C5} = {FB300C5C-A6EB-4BE4-A32D-7FE553C71A5A}
 	EndGlobalSection
 EndGlobal

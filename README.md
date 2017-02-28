@@ -50,12 +50,12 @@ class MyClass
 GroupInfo
 ================
 
-Sometimes you need to filter or Add dynamically compose a query
+Sometimes you need to filter or Add dynamically compose a query. Simple Auth uses named parameters
 
 ```cs
 var group = Database.Main.GetGroupInfo<Song>().Clone();
-group.Filter = "ArtistId = ?";
-group.Params = value.Id;
+group.Filter = "ArtistId = @ArtistId";
+group.Params["@ArtistId"] = value.Id;
 
 Database.Main.RowsInSection<Song>(group , section);
 

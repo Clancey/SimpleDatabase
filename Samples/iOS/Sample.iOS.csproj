@@ -135,9 +135,9 @@
     <Compile Include="AppDelegate.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\SimpleDatabase\SimpleDatabase.csproj">
-      <Project>{4FE40048-B716-42ED-9E26-C114689BAAFD}</Project>
-      <Name>SimpleDatabase</Name>
+    <ProjectReference Include="..\..\SimpleDatabase.iOS\SimpleDatabase.iOS.csproj">
+      <Project>{E8B052D6-9C21-4B3F-9520-29D7B38513C5}</Project>
+      <Name>SimpleDatabase.iOS</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="..\Sample\Sample.projitems" Label="Shared" Condition="Exists('..\Sample\Sample.projitems')" />

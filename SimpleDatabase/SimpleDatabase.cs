@@ -161,7 +161,8 @@ namespace SimpleDatabase
 			groups = new List<SimpleDatabaseGroup> (){new SimpleDatabaseGroup{GroupString = ""}};
 			else {
 				var query = $"select distinct {groupInfo.GroupBy} as GroupString from {groupInfo.FromString(type.Name)} {groupInfo.FilterString(true)} {groupInfo.OrderByString(true)} {groupInfo.LimitString()}";
-				groups = connection.Query<SimpleDatabaseGroup> (query,groupInfo.Params).ToList ();
+				var queryInfo = groupInfo.ConvertSqlFromNamed(query);
+				groups = connection.Query<SimpleDatabaseGroup> (queryInfo.Item1,queryInfo.Item2.ToArray()).ToList ();
 			}
 
 			for (int i = 0; i < groups.Count(); i++) {
@@ -175,12 +176,9 @@ namespace SimpleDatabase
 				if (string.IsNullOrEmpty(groupInfo.GroupBy))
 					rowQuery = $"select count(*) from {groupInfo.FromString(type.Name)} {groupInfo.FilterString(true)}";
 				else
-					rowQuery = $"select count(*) from {groupInfo.FromString(type.Name)} where {groupInfo.GroupBy} = ? {groupInfo.FilterString(false)}";
-				//lock(Locker){
-				if(!string.IsNullOrEmpty(groupInfo.Filter) && groupInfo.Filter.Contains("?") && string.IsNullOrEmpty(group.GroupString))
-					group.RowCount = connection.ExecuteScalar<int> (rowQuery,groupInfo.Params);
-				else 
-					group.RowCount = connection.ExecuteScalar<int> (rowQuery, group.GroupString,groupInfo.Params);
+					rowQuery = $"select count(*) from {groupInfo.FromString(type.Name)} where {groupInfo.GroupBy} = @GroupByParam {groupInfo.FilterString(false)}";
+				var queryInfo = groupInfo.ConvertSqlFromNamed(rowQuery, new Dictionary<string, object> { {"@GroupByParam", group.GroupString} });
+				group.RowCount = connection.ExecuteScalar<int> (queryInfo.Item1, queryInfo.Item2);
 				//}
 				if(groupInfo.Limit > 0)
 					group.RowCount = Math.Min(group.RowCount,groupInfo.Limit);
@@ -462,21 +460,12 @@ namespace SimpleDatabase
 				if (string.IsNullOrEmpty(info.GroupBy))
 					query = $"select * from {info.FromString(t.Name)} {info.FilterString(true)} {info.OrderByString(true)} LIMIT {row}, 1";
 				else
-					query = $"select * from {info.FromString(t.Name)} where {info.GroupBy} = ? {info.FilterString(false)} {info.OrderByString(true)} LIMIT ? , 1";
-				var parameters = new List<object>();
-				if(!string.IsNullOrWhiteSpace(group.GroupString))
-					parameters.Add(group.GroupString);
-				if(!string.IsNullOrEmpty(info.Filter) && info.Filter.Contains("?"))
-					parameters.Add(info.Params);
-				parameters.Add(row);
-				//if (group.Filter.Contains("?"))
-				//{
-				//	item = string.IsNullOrEmpty(@group.GroupString) ? 
-				//		connection.Query<T>(query, info.Params).FirstOrDefault() : 
-				//		connection.Query<T>(query, @group.GroupString, info.Params).FirstOrDefault();
-				//}
-				//else
-					item = connection.Query<T> (query,parameters.ToArray()).FirstOrDefault ();
+					query = $"select * from {info.FromString(t.Name)} where {info.GroupBy} = @GroupByParam {info.FilterString(false)} {info.OrderByString(true)} LIMIT @LimitParam , 1";
+				var queryInfo = info.ConvertSqlFromNamed(query, new Dictionary<string, object> {
+					{"@GroupByParam",group.GroupString},
+					{"@LimitParam", row }
+				});
+				item = connection.Query<T> (queryInfo.Item1,queryInfo.Item2).FirstOrDefault ();
 
 				if (item == null)
 					return new T ();
@@ -576,8 +565,8 @@ namespace SimpleDatabase
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
 			string query = $"Select count(*) from {info.FromString(t.Name)} {filterString}";
-
-			int count = connection.ExecuteScalar<int> (query);
+			var queryInfo = info.ConvertSqlFromNamed(query);
+			int count = connection.ExecuteScalar<int>(queryInfo.Item1, queryInfo.Item2);
 
 			if(info.Limit > 0)
 				return Math.Min(info.Limit,count);
@@ -595,8 +584,8 @@ namespace SimpleDatabase
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
 			string query =  $"Select distinct count({column}) from {info.FromString(t.Name)} {filterString} {info.LimitString()}";
-
-			int count = connection.ExecuteScalar<int> (query,info.Params);
+			var queryInfo = info.ConvertSqlFromNamed(query);
+			int count = connection.ExecuteScalar<int> (queryInfo.Item1,queryInfo.Item2);
 			
 			if(info.Limit > 0)
 				return Math.Min(info.Limit,count);
@@ -612,8 +601,8 @@ namespace SimpleDatabase
 				info = GetGroupInfo<T>();
 			var filterString = info.FilterString (true);
 			var query = $"select * from {info.FromString(t.Name)} {filterString} {info.OrderByString(true)} LIMIT {index}, 1";
-
-			item = connection.Query<T> (query).FirstOrDefault ();
+			var queryInfo = info.ConvertSqlFromNamed(query);
+			item = connection.Query<T> (queryInfo.Item1,queryInfo.Item2).FirstOrDefault ();
 
 			if (item == null)
 				return default(T);
@@ -626,7 +615,8 @@ namespace SimpleDatabase
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
 			string query = $"Select * from {info.FromString(t.Name)} {filterString} {info.LimitString()}";
-			return connection.Query<T> (query).ToList();
+			var queryInfo = info.ConvertSqlFromNamed(query);
+			return connection.Query<T> (queryInfo.Item1,queryInfo.Item2).ToList();
 
 		}
 
@@ -689,7 +679,7 @@ namespace SimpleDatabase
 					return;
 				Debug.WriteLine ("Loading items for group");
 				var type = typeof(T);
-				string query  = $"select * from {group.FromString(type.Name)} where {group.GroupBy} = ? {group.FilterString(false)} {group.OrderByString(true)} LIMIT ? , 50";
+				string query  = $"select * from {group.FromString(type.Name)} where {group.GroupBy} = @GroupByParam {group.FilterString(false)} {group.OrderByString(true)} LIMIT @LimitParam , 50";
 				List<T> items;
 				int current = 0;
 				bool hasMore = true;
@@ -697,8 +687,11 @@ namespace SimpleDatabase
 
 					if (string.IsNullOrEmpty(group.GroupBy))
 						query = $"select * from {group.FromString(type.Name)} {group.FilterString(true)} {group.OrderByString(true)} LIMIT {current}, 50";
-
-					items = connection.Query<T> (query, group.GroupString, current).ToList ();
+					var queryInfo = group.ConvertSqlFromNamed(query, new Dictionary<string, object> {
+						{"@GroupByParam",group.GroupString},
+						{"@LimitParam", current }
+					});
+					items = connection.Query<T>(queryInfo.Item1, queryInfo.Item2).ToList();
 
 					{
 						Dictionary<int,object> memoryGroup;
