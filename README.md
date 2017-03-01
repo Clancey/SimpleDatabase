@@ -1,7 +1,6 @@
 Simple Database
 ================
-Creating fast, responsive and grouped Tableviews is hard. Espcially with very large data sets.  Simple Database takes care of this for you.
-
+Creating fast, responsive and grouped Tableviews is hard. Espcially with very large data sets.  Simple Database takes care of this for you by extending [SQLite-net](https://github.com/praeclarum/sqlite-net)
 Available on Nuget
 ================
 
@@ -62,4 +61,7 @@ Database.Main.RowsInSection<Song>(group , section);
 
 ```
 
+#Open Source Software
+This project was built on the shoulders of giants!
 
+- [SQLite-net](https://github.com/praeclarum/sqlite-net)
