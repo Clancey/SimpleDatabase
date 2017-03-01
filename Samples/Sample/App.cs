@@ -16,19 +16,16 @@ namespace Sample
 				Title = "Sample",
 				Content = new TableView(
 					new TableRoot {
-						new TableSection(""){
-							CreateCell("View Contacts",async ()=>{
-								await MainPage.Navigation.PushAsync(new ContactsPage());
+						new TableSection("Download database"){
+							CreateCell("1,000 people",async ()=>{
+								await SetupDatabase(Database.SetDatabase1000());
 							}),
-						},
-						new TableSection("Populate database"){
-							CreateCell("Add 100 people",async ()=>{
-								await insertPeople (100);
+							CreateCell("10,000 people",async ()=>{
+								await SetupDatabase(Database.SetDatabase10000());
 							}),
-							CreateCell("Add 1000 people",async ()=>{
-								await insertPeople (1000);
+							CreateCell("20,000 people",async ()=>{
+							await SetupDatabase(Database.SetDatabase20000());
 							}),
-							new TextCell{Text = "The first time will download a 4.1mb database used to generate real names"},
 							new ViewCell{
 								View = spinner,
 							},
@@ -49,14 +46,14 @@ namespace Sample
 			cell.Tapped += (sender, e) => action?.Invoke();
 			return cell;
 		}
-		async Task insertPeople(int numberOfPeople)
+		async Task SetupDatabase(Task setupDatabase)
 		{
 			spinner.IsRunning = true;
 			try
 			{
-				var people = await NameGenerator.GetPeopleAsync(numberOfPeople);
-				var records = await Database.Main.InsertAllAsync(people);
-				Database.Main.UpdateInstant<Person>();
+				await setupDatabase;
+				await MainPage.Navigation.PushAsync(new ContactsPage());
+
 			}
 			catch (Exception ex)
 			{

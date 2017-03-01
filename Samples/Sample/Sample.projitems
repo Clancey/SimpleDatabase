@@ -12,7 +12,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)App.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SimpleDatabaseSource.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Data\Database.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Data\NameGenerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Data\SongDatabase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Model\Person.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Model\Song.cs" />
