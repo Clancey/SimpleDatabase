@@ -12,48 +12,6 @@ using System.Linq.Expressions;
 
 namespace SimpleDatabase
 {
-
-	public class ThreadLock: IDisposable{
-
-		enum Status{
-			Acquiring,
-			Acquired,
-		}
-		Status status;
-		Object objLock;
-		public static ThreadLock Lock(object objLock)
-		{         
-			return new ThreadLock(objLock);  
-			       
-		}
-		
-		public ThreadLock(object objLock)
-		{
-
-			this.status = Status.Acquiring; //useful for detecting dead-lock
-			this.objLock = objLock; 
-			
-			//Debug.WriteLine("Lock {0}",status);
-			//collect useful information about the context such 
-			//as stacktrace, time to acquire the lock(T1)
-			Monitor.Enter(objLock); 
-
-			//lockOwner = Thread.CurrentThread;
-			this.status = Status.Acquired; 
-			//Debug.WriteLine("Lock {0}",status);
-			//lock is acuired, so collect acquired-time(T2)
-			//[T2-T1 = time taken to acquire lock]
-		}
-		
-		public void Dispose()
-		{
-
-			Monitor.Exit(objLock);
-			//Debug.WriteLine("Lock Ended");
-			//T3: activity in a lock is over
-			//Serialize this class for doing analysis of thread-lock activity time 
-		}
-	}
 	public class SimpleDatabaseConnection
 	{
 		Dictionary<Tuple<Type,string>,Dictionary<int,Dictionary<int,Object>>> MemoryStore = new Dictionary<Tuple<Type,string>, Dictionary<int, Dictionary<int, object>>> ();
@@ -145,7 +103,7 @@ namespace SimpleDatabase
 			List<SimpleDatabaseGroup> groups = CreateGroupInfo (type, groupInfo);
 
 			var tuple = new Tuple<Type,string> (type, groupInfo.ToString());
-			using(ThreadLock.Lock(groupLocker)) {
+			lock(groupLocker) {
 				if (Groups.ContainsKey (tuple))
 					Groups [tuple] = groups;
 				else
@@ -206,7 +164,7 @@ namespace SimpleDatabase
 			if(info == null)
 				info = GetGroupInfo (type);
 			var tuple = new Tuple<Type,string> (type, info.ToString());
-			using(ThreadLock.Lock(memStoreLocker)) {
+			lock(memStoreLocker) {
 				if (MemoryStore.ContainsKey (tuple)) {
 					MemoryStore [tuple] = new Dictionary<int, Dictionary<int, object>> ();
 				}
@@ -217,7 +175,7 @@ namespace SimpleDatabase
 
 		public void ClearMemory ()
 		{
-			using(ThreadLock.Lock (memStoreLocker)) {
+			lock (memStoreLocker) {
 
 				ObjectsDict.Clear ();
 				ClearMemoryStore ();
@@ -226,9 +184,9 @@ namespace SimpleDatabase
 		}
 		public void ClearMemoryStore()
 		{
-			using(ThreadLock.Lock (memStoreLocker)) {
+			lock (memStoreLocker) {
 				MemoryStore.Clear ();
-				using(ThreadLock.Lock (groupLocker)){
+				lock (groupLocker){
 					Groups.Clear ();
 					GroupInfoDict.Clear ();
 				}
@@ -243,7 +201,7 @@ namespace SimpleDatabase
 
 		public void ClearMemory(params Type[] types)
 		{
-			using (ThreadLock.Lock(memStoreLocker))
+			lock(memStoreLocker)
 			{
 				var toRemove = MemoryStore.Where(x => types.Contains(x.Key.Item1)).ToArray();
 				foreach (var item in toRemove)
@@ -251,7 +209,7 @@ namespace SimpleDatabase
 					MemoryStore.Remove(item.Key);
 				}
 			}
-			using (ThreadLock.Lock(groupLocker))
+			lock(groupLocker)
 			{
 				Groups.Clear();
 			}
@@ -265,10 +223,10 @@ namespace SimpleDatabase
 		public void ClearMemory(Type type, GroupInfo groupInfo)
 		{
 			var tuple = new Tuple<Type,string> (type, groupInfo.ToString());
-			using(ThreadLock.Lock(memStoreLocker)){
+			lock(memStoreLocker){
 				MemoryStore.Remove (tuple);
 			}
-			using(ThreadLock.Lock (groupLocker)){
+			lock (groupLocker){
 				Groups.Clear ();
 			}
 		}
@@ -283,7 +241,7 @@ namespace SimpleDatabase
 			if (info == null)
 				info = GetGroupInfo<T> ();
 
-			using(ThreadLock.Lock (groupLocker)) {
+			lock (groupLocker) {
 				var t = typeof(T);
 				var tuple = new Tuple<Type,string> (t, info.ToString());
 				if (!Groups.ContainsKey (tuple) || Groups [tuple].Count<= section)
@@ -307,7 +265,7 @@ namespace SimpleDatabase
 		{
 			if (info == null)
 				info = GetGroupInfo<T> ();
-			using(ThreadLock.Lock (groupLocker)) {
+			lock (groupLocker) {
 				var t = typeof(T);
 				var tuple = new Tuple<Type,string> (t, info.ToString());
 				if (!Groups.ContainsKey (tuple))
@@ -327,7 +285,7 @@ namespace SimpleDatabase
 		{
 			if (info == null)
 				info = GetGroupInfo<T> ();
-			using(ThreadLock.Lock (groupLocker)) {
+			lock (groupLocker) {
 				var t = typeof(T);
 				var tuple = new Tuple<Type,string> (t, info.ToString());
 				if (!Groups.ContainsKey (tuple))
@@ -345,7 +303,7 @@ namespace SimpleDatabase
 		{
 			if (info == null)
 				info = GetGroupInfo<T> ();
-			using(ThreadLock.Lock (groupLocker)) {
+			lock (groupLocker) {
 				var group = GetGroup<T> (info, section);
 				return group.RowCount;
 			}
@@ -372,7 +330,7 @@ namespace SimpleDatabase
 				{
 					if(count > 0)
 						Debug.WriteLine("Trying to fill groups: {0}",count);
-					using(ThreadLock.Lock(groupLocker)){
+					lock(groupLocker){
 						Groups.TryGetValue(tuple,out group);
 					}
 					if(group == null)
@@ -392,7 +350,7 @@ namespace SimpleDatabase
 		{
 			List<SimpleDatabaseGroup> groups;
 				groups = CreateGroupInfo(t,info);
-			using(ThreadLock.Lock (groupLocker)) {
+			lock (groupLocker) {
 				var tuple = new Tuple<Type,string> (t, info.ToString());
 				Groups [tuple] = groups;
 			}
@@ -408,7 +366,7 @@ namespace SimpleDatabase
 		{
 			if (info == null)
 				info = GetGroupInfo<T> ();
-			using(ThreadLock.Lock (memStoreLocker)) {
+			lock (memStoreLocker) {
 				var type = typeof(T);
 				var tuple = new Tuple<Type,string> (type, info.ToString());
 				if (MemoryStore.ContainsKey (tuple)) {
@@ -471,7 +429,7 @@ namespace SimpleDatabase
 					return new T ();
 					
 				var tuple = new Tuple<Type,string> (t, info.ToString());
-				using(ThreadLock.Lock (memStoreLocker)) {
+				lock (memStoreLocker) {
 					if (!MemoryStore.ContainsKey (tuple))
 						MemoryStore.Add (tuple, new Dictionary<int, Dictionary<int, object>> ());
 					var groups = MemoryStore [tuple];
@@ -493,7 +451,7 @@ namespace SimpleDatabase
 		}
 		public void AddObjectToDict(object item, Type t)
 		{
-			using (ThreadLock.Lock(groupLocker))
+			lock(groupLocker)
 			{
 				var primaryKey = GetPrimaryKeyProperty(t);
 				if (primaryKey == null)
@@ -520,7 +478,7 @@ namespace SimpleDatabase
 
 		public void RemoveObjectFromDict(object item, Type t)
 		{
-			using (ThreadLock.Lock(groupLocker))
+			lock(groupLocker)
 			{
 				var primaryKey = GetPrimaryKeyProperty(t);
 				if (primaryKey == null)
@@ -533,7 +491,7 @@ namespace SimpleDatabase
 
 		T GetIfCached<T>(T item)
 		{
-			using (ThreadLock.Lock(groupLocker))
+			lock(groupLocker)
 			{
 				var t = typeof (T);
 				var primaryKey = GetPrimaryKeyProperty(t);
@@ -633,7 +591,7 @@ namespace SimpleDatabase
 			var type = typeof(T);
 			var tuple = new Tuple<Type,string> (type, info.ToString());
 			FillGroups (type, info);
-			using(ThreadLock.Lock (groupLocker)) {
+			lock (groupLocker) {
 				if (Groups [tuple].Count () == 0)
 					SetGroups (type, info);
 
@@ -656,7 +614,6 @@ namespace SimpleDatabase
 
 		public void Precache<T> (GroupInfo info, int section) where T : new()
 		{
-			//return;
 			try{
 				if (info == null)
 					info = GetGroupInfo<T> ();
@@ -695,7 +652,7 @@ namespace SimpleDatabase
 
 					{
 						Dictionary<int,object> memoryGroup;
-						using(ThreadLock.Lock (memStoreLocker)){
+						lock (memStoreLocker){
 						var tuple = new Tuple<Type,string> (type, group.ToString());
 						if (!MemoryStore.ContainsKey (tuple)) {
 							MemoryStore.Add (tuple, new Dictionary<int, Dictionary<int, object>> ());
@@ -827,7 +784,7 @@ namespace SimpleDatabase
 		{
 			var c = 0;
 			var types = new HashSet<Type>();
-			using (new ThreadLock(writeLocker))
+			lock(writeLocker)
 			{
 				connection.RunInTransaction(() =>
 				{
@@ -865,7 +822,7 @@ namespace SimpleDatabase
 		{
 			var c = 0;
 			var types = new HashSet<Type>();
-			using (new ThreadLock(writeLocker))
+			lock(writeLocker)
 			{
 				connection.RunInTransaction(() =>
 				{
@@ -927,7 +884,7 @@ namespace SimpleDatabase
 		public int InsertAll (System.Collections.IEnumerable objects, Type objType)
 		{
 			var c = 0;
-			using (new ThreadLock(writeLocker))
+			lock(writeLocker)
 			{
 				connection.RunInTransaction(() =>
 				{
@@ -1048,7 +1005,7 @@ namespace SimpleDatabase
 		{
 			var c = 0;
 			var types = new HashSet<Type>();
-			using (new ThreadLock(writeLocker))
+			lock(writeLocker)
 			{
 				connection.RunInTransaction(() =>
 				{
@@ -1085,7 +1042,7 @@ namespace SimpleDatabase
 		public int InsertOrReplaceAll(System.Collections.IEnumerable objects, Type objType)
 		{
 			var c = 0;
-			using (new ThreadLock(writeLocker))
+			lock(writeLocker)
 			{
 				connection.RunInTransaction(() =>
 				{
@@ -1107,7 +1064,7 @@ namespace SimpleDatabase
 
 		public void RunInTransaction(Action<SQLiteConnection> action)
 		{
-			using (new ThreadLock(writeLocker))
+			lock(writeLocker)
 			{
 				connection.RunInTransaction(() => action(connection));
 			}
@@ -1195,7 +1152,7 @@ namespace SimpleDatabase
 		{
 			var c = 0;
 			var types = new HashSet<Type>();
-			using (new ThreadLock(writeLocker))
+			lock(writeLocker)
 			{
 				connection.RunInTransaction(() =>
 				{
@@ -1220,7 +1177,7 @@ namespace SimpleDatabase
 		public int DeleteAll (System.Collections.IEnumerable objects,Type type)
 		{
 			var c = 0;
-			using (new ThreadLock(writeLocker))
+			lock(writeLocker)
 			{
 				connection.RunInTransaction(() =>
 				{
@@ -1265,7 +1222,7 @@ namespace SimpleDatabase
 		{
 			var c = 0;
 			var types = new HashSet<Type>();
-			using (new ThreadLock(writeLocker))
+			lock(writeLocker)
 			{
 				connection.RunInTransaction(() =>
 				{
