@@ -17,23 +17,60 @@ namespace SimpleDatabase
 	}
 	public class GroupInfo
 	{
+		bool stringIsValid = false;
 		public GroupInfo()
 		{
 			Filter = "";
 			From = "";
 		}
+
+		string groupBy;
 		[Indexed]
-		public string GroupBy {get;set;}
+		public string GroupBy {
+			get { return groupBy; }
+			set
+			{
+				groupBy = value;
+				stringIsValid = false;
+			}
+		}
+
 		public Dictionary<string, object> Params { get; set;}= new Dictionary<string, object>();
 		public bool OrderByDesc { get; set;}
 		public string GroupString {get;set;}
 		public bool GroupOrderByDesc { get; set;}
-		[Indexed]
-		public string OrderBy { get; set; }
-		[Indexed]
-		public string Filter { get; set;}
 
-		public string From { get; set;}
+		string orderBy;
+		[Indexed]
+		public string OrderBy { 
+			get { return orderBy;}
+			set
+			{
+				orderBy = value;
+				stringIsValid = false;
+			}
+		}
+
+		string filter;
+		[Indexed]
+		public string Filter
+		{
+			get { return filter; }
+			set
+			{
+				filter = value;
+				stringIsValid = false;
+			}
+		}
+
+		string from;
+		public string From { 
+			get { return from;}
+			set { 
+				from = value;
+				stringIsValid = false;
+			}
+		}
 
 		public int Limit {get;set;}
 
@@ -125,10 +162,16 @@ namespace SimpleDatabase
 			}
 			return !x.Equals (y);
 		}
-		
+
+		string toStringValue;
 		public override string ToString ()
 		{
-			return $"[GroupInfo: GroupBy={GroupBy}, OrderBy={OrderBy}, Filter={Filter}, From={From} ,Params{string.Join(",", Params)}]";
+			if (!stringIsValid || string.IsNullOrEmpty(toStringValue))
+			{
+				toStringValue = $"[GroupInfo: GroupBy={GroupBy}, OrderBy={OrderBy}, Filter={Filter}, From={From} ,Params{string.Join(",", Params)}]";
+				stringIsValid = true;
+			}
+			return toStringValue;
 		}
 
 		public Tuple<string, object[]> ConvertSqlFromNamed(string sql, Dictionary<string, object> injectedParams = null)
