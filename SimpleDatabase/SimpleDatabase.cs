@@ -739,13 +739,21 @@ namespace SimpleDatabase
 		}
 
 
+		static Dictionary<Type, Tuple<PropertyInfo,bool>> groupByProperties = new Dictionary<Type, Tuple<PropertyInfo,bool>>();
 		static internal PropertyInfo GetGroupByProperty (Type type, out bool desc)
 		{
+			Tuple<PropertyInfo,bool> property;
+			if (groupByProperties.TryGetValue(type, out property))
+			{
+				desc = property.Item2;
+				return property.Item1;
+			}
 			foreach (var prop in type.GetProperties()) {
 				var attribtues = prop.GetCustomAttributes (false);
 				var visibleAtt = attribtues.Where (x => x is GroupByAttribute).FirstOrDefault () as GroupByAttribute;
 				if (visibleAtt != null){
 					desc = visibleAtt.Descending;
+					groupByProperties[type] = new Tuple<PropertyInfo, bool>(prop, desc);
 					return prop;
 				}
 			}
@@ -753,14 +761,23 @@ namespace SimpleDatabase
 			return null;
 		}
 
+
+		static Dictionary<Type, Tuple<PropertyInfo,bool>> orderByProperties = new Dictionary<Type, Tuple<PropertyInfo,bool>>();
 		internal static PropertyInfo GetOrderByProperty (Type type, out bool desc)
 		{
+			Tuple<PropertyInfo, bool> property;
+			if (orderByProperties.TryGetValue(type, out property))
+			{
+				desc = property.Item2;
+				return property.Item1;
+			}
 			foreach (var prop in type.GetProperties()) {
 				var attribtues = prop.GetCustomAttributes (false);
 				var visibleAtt = attribtues.Where (x => x is OrderByAttribute).FirstOrDefault () as OrderByAttribute;
 				if (visibleAtt != null)
 				{
 					desc = visibleAtt.Descending;
+					orderByProperties[type] = new Tuple<PropertyInfo, bool>(prop, desc);
 					return prop;
 				}
 			}
@@ -768,15 +785,19 @@ namespace SimpleDatabase
 			return null;
 		}
 
-		private PropertyInfo GetPrimaryKeyProperty (Type type)
+		static Dictionary<Type, PropertyInfo> primaryKeys = new Dictionary<Type, PropertyInfo>();
+		static PropertyInfo GetPrimaryKeyProperty (Type type)
 		{
+			PropertyInfo property;
+			if (primaryKeys.TryGetValue(type, out property))
+				return property;
 			foreach (var prop in type.GetProperties()) {
 				var attribtues = prop.GetCustomAttributes (false);
 				var visibleAtt = attribtues.Where (x => x is PrimaryKeyAttribute).FirstOrDefault () as PrimaryKeyAttribute;
 				if (visibleAtt != null)
-					return prop;
+					return primaryKeys[type] = prop;
 			}
-			return null;
+			return primaryKeys[type] = null;
 		}
 		#region sqlite
 
