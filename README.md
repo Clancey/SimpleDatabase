@@ -1,6 +1,8 @@
 Simple Database
 ================
+
 Creating fast, responsive and grouped Tableviews is hard. Espcially with very large data sets.  Simple Database takes care of this for you by extending [SQLite-net](https://github.com/praeclarum/sqlite-net)
+
 Available on Nuget
 ================
 
