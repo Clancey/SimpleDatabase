@@ -118,7 +118,7 @@ namespace SimpleDatabase
 			if (string.IsNullOrEmpty (groupInfo.GroupBy))
 			groups = new List<SimpleDatabaseGroup> (){new SimpleDatabaseGroup{GroupString = ""}};
 			else {
-				var query = $"select distinct {groupInfo.GroupBy} as GroupString from {groupInfo.FromString(type.Name)} {groupInfo.FilterString(true)} {groupInfo.OrderByString(true)} {groupInfo.LimitString()}";
+				var query = $"select distinct {groupInfo.GroupBy} as GroupString from {groupInfo.FromString(GetTableName(type))} {groupInfo.FilterString(true)} {groupInfo.OrderByString(true)} {groupInfo.LimitString()}";
 				var queryInfo = groupInfo.ConvertSqlFromNamed(query);
 				groups = connection.Query<SimpleDatabaseGroup> (queryInfo.Item1,queryInfo.Item2.ToArray()).ToList ();
 			}
@@ -132,9 +132,9 @@ namespace SimpleDatabase
 				group.Order = i;
 				string rowQuery;
 				if (string.IsNullOrEmpty(groupInfo.GroupBy))
-					rowQuery = $"select count(*) from {groupInfo.FromString(type.Name)} {groupInfo.FilterString(true)}";
+					rowQuery = $"select count(*) from {groupInfo.FromString(GetTableName(type))} {groupInfo.FilterString(true)}";
 				else
-					rowQuery = $"select count(*) from {groupInfo.FromString(type.Name)} where {groupInfo.GroupBy} = @GroupByParam {groupInfo.FilterString(false)}";
+					rowQuery = $"select count(*) from {groupInfo.FromString(GetTableName(type))} where {groupInfo.GroupBy} = @GroupByParam {groupInfo.FilterString(false)}";
 				var queryInfo = groupInfo.ConvertSqlFromNamed(rowQuery, new Dictionary<string, object> { {"@GroupByParam", group.GroupString} });
 				group.RowCount = connection.ExecuteScalar<int> (queryInfo.Item1, queryInfo.Item2);
 				//}
@@ -143,7 +143,11 @@ namespace SimpleDatabase
 			}
 			return groups;
 		}
-
+		string GetTableName(Type type)
+		{
+			var tableInfo = GetTableMapping(connection, type);
+			return tableInfo.TableName;
+		}
 		public void UpdateInstant<T> (GroupInfo info)
 		{
 			UpdateInstant (typeof(T), info);
@@ -392,8 +396,8 @@ namespace SimpleDatabase
 				if (ObjectsDict [type].ContainsKey (primaryKey)) 
 					return (T)ObjectsDict [type] [primaryKey];
 				//Debug.WriteLine("object not in objectsdict");
-				var pk = GetPrimaryKeyProperty (type);
-				var query = $"select * from {type.Name} where {pk.Name} = ? ";
+				var pk = GetTableMapping (connection, type);
+				var query = $"select * from {pk.TableName} where {pk.PK.Name} = ? ";
 
 				T item = connection.Query<T> (query, primaryKey).FirstOrDefault ();
 
@@ -416,9 +420,9 @@ namespace SimpleDatabase
 
 				string query;
 				if (string.IsNullOrEmpty(info.GroupBy))
-					query = $"select * from {info.FromString(t.Name)} {info.FilterString(true)} {info.OrderByString(true)} LIMIT {row}, 1";
+					query = $"select * from {info.FromString(GetTableName(t))} {info.FilterString(true)} {info.OrderByString(true)} LIMIT {row}, 1";
 				else
-					query = $"select * from {info.FromString(t.Name)} where {info.GroupBy} = @GroupByParam {info.FilterString(false)} {info.OrderByString(true)} LIMIT @LimitParam , 1";
+					query = $"select * from {info.FromString(GetTableName(t))} where {info.GroupBy} = @GroupByParam {info.FilterString(false)} {info.OrderByString(true)} LIMIT @LimitParam , 1";
 				var queryInfo = info.ConvertSqlFromNamed(query, new Dictionary<string, object> {
 					{"@GroupByParam",group.GroupString},
 					{"@LimitParam", row }
@@ -453,10 +457,10 @@ namespace SimpleDatabase
 		{
 			lock(groupLocker)
 			{
-				var primaryKey = GetPrimaryKeyProperty(t);
+				var primaryKey = GetTableMapping(connection, t);
 				if (primaryKey == null)
 					return;
-				object pk = primaryKey.GetValue(item, null);
+				object pk = primaryKey.PK.GetValue(item);
 				if (!ObjectsDict.ContainsKey(t))
 					ObjectsDict.Add(t, new Dictionary<object, object>());
 				ObjectsDict[t][pk] = item;
@@ -480,10 +484,10 @@ namespace SimpleDatabase
 		{
 			lock(groupLocker)
 			{
-				var primaryKey = GetPrimaryKeyProperty(t);
+				var primaryKey = GetTableMapping(connection,t);
 				if (primaryKey == null)
 					return;
-				object pk = primaryKey.GetValue(item, null);
+				object pk = primaryKey.PK.GetValue(item);
 				if (ObjectsDict.ContainsKey(t))
 					ObjectsDict[t].Remove(pk);
 			}
@@ -494,10 +498,10 @@ namespace SimpleDatabase
 			lock(groupLocker)
 			{
 				var t = typeof (T);
-				var primaryKey = GetPrimaryKeyProperty(t);
+				var primaryKey = GetTableMapping(connection, t);
 				if (primaryKey == null)
 					return item;
-				var pk = primaryKey.GetValue(item, null);
+				var pk = primaryKey.PK.GetValue(item);
 
 				if (!ObjectsDict.ContainsKey(t))
 					ObjectsDict.Add(t, new Dictionary<object, object>());
@@ -522,7 +526,7 @@ namespace SimpleDatabase
 				info = GetGroupInfo<T> ();
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
-			string query = $"Select count(*) from {info.FromString(t.Name)} {filterString}";
+			string query = $"Select count(*) from {info.FromString(GetTableName(t))} {filterString}";
 			var queryInfo = info.ConvertSqlFromNamed(query);
 			int count = connection.ExecuteScalar<int>(queryInfo.Item1, queryInfo.Item2);
 
@@ -541,7 +545,7 @@ namespace SimpleDatabase
 				info = GetGroupInfo<T> ();
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
-			string query =  $"Select distinct count({column}) from {info.FromString(t.Name)} {filterString} {info.LimitString()}";
+			string query =  $"Select distinct count({column}) from {info.FromString(GetTableName(t))} {filterString} {info.LimitString()}";
 			var queryInfo = info.ConvertSqlFromNamed(query);
 			int count = connection.ExecuteScalar<int> (queryInfo.Item1,queryInfo.Item2);
 			
@@ -558,7 +562,7 @@ namespace SimpleDatabase
 			if (info == null)
 				info = GetGroupInfo<T>();
 			var filterString = info.FilterString (true);
-			var query = $"select * from {info.FromString(t.Name)} {filterString} {info.OrderByString(true)} LIMIT {index}, 1";
+			var query = $"select * from {info.FromString(GetTableName(t))} {filterString} {info.OrderByString(true)} LIMIT {index}, 1";
 			var queryInfo = info.ConvertSqlFromNamed(query);
 			item = connection.Query<T> (queryInfo.Item1,queryInfo.Item2).FirstOrDefault ();
 
@@ -572,7 +576,7 @@ namespace SimpleDatabase
 				info = GetGroupInfo<T> ();
 			var filterString = info.FilterString (true);
 			var t = typeof(T);
-			string query = $"Select * from {info.FromString(t.Name)} {filterString} {info.LimitString()}";
+			string query = $"Select * from {info.FromString(GetTableName(t))} {filterString} {info.LimitString()}";
 			var queryInfo = info.ConvertSqlFromNamed(query);
 			return connection.Query<T> (queryInfo.Item1,queryInfo.Item2).ToList();
 
@@ -785,20 +789,17 @@ namespace SimpleDatabase
 			return null;
 		}
 
-		static Dictionary<Type, PropertyInfo> primaryKeys = new Dictionary<Type, PropertyInfo>();
-		static PropertyInfo GetPrimaryKeyProperty (Type type)
+		static Dictionary<Type, TableMapping> cachedTableMappings = new Dictionary<Type, TableMapping>();
+		static TableMapping GetTableMapping (SQLiteConnection connection, Type type)
 		{
-			PropertyInfo property;
-			if (primaryKeys.TryGetValue(type, out property))
-				return property;
-			foreach (var prop in type.GetProperties()) {
-				var attribtues = prop.GetCustomAttributes (false);
-				var visibleAtt = attribtues.Where (x => x is PrimaryKeyAttribute).FirstOrDefault () as PrimaryKeyAttribute;
-				if (visibleAtt != null)
-					return primaryKeys[type] = prop;
-			}
-			return primaryKeys[type] = null;
+			TableMapping property;
+			if (!cachedTableMappings.TryGetValue(type, out property))
+				cachedTableMappings[type] = property = connection.GetMapping(type);
+			return property;
+
 		}
+
+
 		#region sqlite
 
 		public int InsertAll (System.Collections.IEnumerable objects)
