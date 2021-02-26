@@ -8,15 +8,15 @@ namespace SQLite
 {
 	public static class SqliteExtensions
 	{
-		public static Dictionary<Type,int> CreateTables(this SQLiteConnection connection, params Type[] types)
+		public static Dictionary<Type,CreateTableResult> CreateTables(this SQLiteConnection connection, params Type[] types)
 		{
 			//CreateTablesResult Result has internal constructor
-			var results = new Dictionary<Type, int>();
+			var results = new Dictionary<Type, CreateTableResult>();
 			foreach (Type type in types)
 			{
 				try
 				{
-					int aResult = connection.CreateTable(type);
+					var aResult = connection.CreateTable(type);
 					results[type] = aResult;
 				}
 				catch (Exception)
