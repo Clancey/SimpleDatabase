@@ -1,6 +1,7 @@
 .droidres/
 /Make.config.local
 /.dist
+/.vs
 *~
 *.pidb
 *.userprefs
@@ -12,3 +13,4 @@ test-results
 *.suo
 Components/
 [Pp]ackages
+*.nupkg
