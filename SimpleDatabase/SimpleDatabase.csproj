@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFrameworks>netstandard2.1;net6.0;net6.0-ios;net6.0-android;net6.0-maccatalyst</TargetFrameworks>
     <RootNamespace>SimpleDatabase</RootNamespace>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -14,7 +14,7 @@
     <DebugType></DebugType>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="sqlite-net-pcl" Version="1.7.335" />
+    <PackageReference Include="sqlite-net-pcl" Version="1.8.116" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />

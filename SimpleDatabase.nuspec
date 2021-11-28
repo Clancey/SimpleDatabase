@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
     <metadata>
         <id>Clancey.SimpleDatabase</id>
-        <version>1.1.5</version>
+        <version>1.1.6</version>
         <authors>Clancey</authors>
         <licenseUrl>https://github.com/Clancey/SimpleDatabase/blob/master/LICENSE</licenseUrl>
         <projectUrl>https://github.com/Clancey/SimpleDatabase</projectUrl>
@@ -11,18 +11,22 @@
         <summary>SimpleDatabase is built on top of Sqlite-Net.  It gives you everything you need to build fast grouped TableViews in Xamarin</summary>
         <releaseNotes>Updated Nugets</releaseNotes>
         <copyright>James Clancey</copyright>
-		 <dependencies>
-		  <group>
-			<dependency id="sqlite-net-pcl" version="1.7.335" />
-		  </group>
-		  <group targetFramework="Xamarin.Mac20">
-			<dependency id="sqlite-net-pcl" version="1.7.335" />
-			<dependency id="SQLitePCLRaw.provider.sqlite3.macos" version="1.1.14" />
-		  </group>
-		</dependencies>
+		  <dependencies>
+        <group>
+          <dependency id="sqlite-net-pcl" version="1.8.116" />
+        </group>
+        <group targetFramework="Xamarin.Mac20">
+          <dependency id="sqlite-net-pcl" version="1.8.116" />
+          <dependency id="SQLitePCLRaw.provider.sqlite3.macos" version="1.1.14" />
+        </group>
+      </dependencies>
     </metadata>
     <files>
-        <file src="SimpleDatabase\bin\Release\SimpleDatabase.dll" target="lib\netstandard2.1" />
+        <file src="SimpleDatabase\bin\Release\netstandard2.1\SimpleDatabase.dll" target="lib\netstandard2.1\SimpleDatabase.dll" />
+        <file src="SimpleDatabase\bin\Release\net6.0\SimpleDatabase.dll" target="lib\net6.0\SimpleDatabase.dll" />
+        <file src="SimpleDatabase\bin\Release\net6.0-android\SimpleDatabase.dll" target="lib\net6.0-android30.0\SimpleDatabase.dll" />
+        <file src="SimpleDatabase\bin\Release\net6.0-ios\SimpleDatabase.dll" target="lib\net6.0-ios13.6\SimpleDatabase.dll" />
+        <file src="SimpleDatabase\bin\Release\net6.0-maccatalyst\SimpleDatabase.dll" target="lib\net6.0-maccatalyst13.5\SimpleDatabase.dll" />
         <file src="SimpleDatabase.iOS\bin\Release\SimpleDatabase.dll" target="lib\Xamarin.iOS10\SimpleDatabase.dll" />
     </files>
 </package>
